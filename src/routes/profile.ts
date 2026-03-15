@@ -155,6 +155,104 @@ profile.get('/:id', async (c) => {
   }
 })
 
+// AI-based automatic profile summary generation
+profile.post('/generate-summary', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employee') return c.json({ success: false, message: 'Employee access required' }, 403)
+
+    const ep = await c.env.DB.prepare(
+      'SELECT * FROM employee_profiles WHERE user_id = ?'
+    ).bind(user.userId).first() as any
+
+    if (!ep) return c.json({ success: false, message: 'Profile not found' }, 404)
+
+    const skills = JSON.parse(ep.skills || '[]')
+    const education = JSON.parse(ep.education || '[]')
+    const workExp = JSON.parse(ep.work_experience || '[]')
+    const certifications = JSON.parse(ep.certifications || '[]')
+    const languages = JSON.parse(ep.languages || '[]')
+
+    // Build a rich prompt from the profile data
+    const profileContext = [
+      ep.full_name ? `Name: ${ep.full_name}` : '',
+      ep.current_job_title ? `Current Role: ${ep.current_job_title}` : '',
+      ep.current_company ? `Company: ${ep.current_company}` : '',
+      ep.total_experience_years ? `Experience: ${ep.total_experience_years} years` : '',
+      skills.length ? `Skills: ${skills.join(', ')}` : '',
+      ep.city ? `Location: ${ep.city}${ep.state ? ', ' + ep.state : ''}` : '',
+      education.length ? `Education: ${education.map((e: any) => `${e.degree} from ${e.institution}${e.year ? ' ('+e.year+')' : ''}`).join('; ')}` : '',
+      workExp.length ? `Work Experience: ${workExp.map((w: any) => `${w.title || w.role || ''} at ${w.company || ''} (${w.duration || w.years || ''})`).join('; ')}` : '',
+      certifications.length ? `Certifications: ${certifications.join(', ')}` : '',
+      languages.length ? `Languages: ${languages.join(', ')}` : '',
+      ep.expected_salary ? `Expected Salary: ₹${ep.expected_salary} per annum` : '',
+      ep.notice_period !== null && ep.notice_period !== undefined ? `Notice Period: ${ep.notice_period} days` : '',
+      ep.linkedin_url ? `LinkedIn: ${ep.linkedin_url}` : '',
+      ep.github_url ? `GitHub: ${ep.github_url}` : '',
+      ep.portfolio_url ? `Portfolio: ${ep.portfolio_url}` : '',
+    ].filter(Boolean).join('\n')
+
+    const prompt = `You are an expert career consultant and professional resume writer. Based on the following employee profile data, generate a compelling, concise, and professional profile summary/bio in 3-4 sentences (max 100 words). The summary should highlight the person's key strengths, experience, skills, and career goals. Make it suitable for a job application or professional profile. Write in first person.
+
+Profile Data:
+${profileContext}
+
+Generate only the summary text, no labels or extra content.`
+
+    // Use a simple AI approach - generate summary from profile data algorithmically
+    // (Real AI integration via OpenAI API if OPENAI_API_KEY is available)
+    const aiApiKey = (c.env as any).OPENAI_API_KEY
+
+    let summary = ''
+
+    if (aiApiKey) {
+      // Call OpenAI API
+      const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${aiApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 200,
+          temperature: 0.7
+        })
+      })
+      const aiData = await aiRes.json() as any
+      summary = aiData?.choices?.[0]?.message?.content?.trim() || ''
+    }
+
+    // Fallback: Smart template-based summary generation
+    if (!summary) {
+      const expText = ep.total_experience_years > 0
+        ? `${ep.total_experience_years}+ years of professional experience`
+        : 'a fresh graduate eager to start my career'
+      const roleText = ep.current_job_title ? `${ep.current_job_title}` : 'IT Professional'
+      const skillsText = skills.length > 0
+        ? skills.slice(0, 5).join(', ')
+        : 'various technologies'
+      const cityText = ep.city ? ` based in ${ep.city}` : ''
+      const eduText = education.length > 0 ? ` I hold a ${education[0].degree} from ${education[0].institution}.` : ''
+      const lookingText = ep.is_actively_looking
+        ? ' Currently actively seeking new opportunities.'
+        : ' Open to the right opportunities.'
+
+      summary = `I am a ${roleText}${cityText} with ${expText} in the technology domain. Proficient in ${skillsText}, I bring strong problem-solving skills and a passion for delivering high-quality solutions.${eduText}${lookingText}`
+    }
+
+    // Auto-save the generated bio to profile
+    await c.env.DB.prepare(
+      'UPDATE employee_profiles SET bio = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?'
+    ).bind(summary, user.userId).run()
+
+    return c.json({ success: true, summary, message: 'Profile summary generated and saved!' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
 // Get employee's applications
 profile.get('/applications/list', async (c) => {
   try {

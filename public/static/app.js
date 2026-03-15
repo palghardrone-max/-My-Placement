@@ -136,6 +136,7 @@ function renderLogin(role = null) {
     <div class="auth-container">
       <div class="auth-card">
         <div class="auth-logo">
+          <img src="/static/logo.png" alt="Arc Cad Soft" style="max-width:180px;max-height:70px;object-fit:contain;margin-bottom:6px;" onerror="this.style.display='none'">
           <h1><i class="fas fa-briefcase" style="color:#2563eb"></i> My Placement</h1>
           <p>Smart Job Matching Platform</p>
         </div>
@@ -333,6 +334,7 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
     <div class="dashboard-layout">
       <aside class="sidebar">
         <div class="sidebar-logo">
+          <img src="/static/logo.png" alt="Arc Cad Soft" style="max-width:150px;max-height:50px;object-fit:contain;display:block;margin-bottom:4px;" onerror="this.style.display='none'">
           <h2><i class="fas fa-briefcase"></i> My Placement</h2>
           <p>${roleLabels[role] || role} Panel</p>
         </div>
@@ -1673,8 +1675,21 @@ async function loadMyProfile() {
             I am actively looking for jobs
           </label>
         </div>
-        <div class="form-group"><label class="form-label">Bio / Summary</label><textarea id="p-bio" class="form-control" rows="4" placeholder="Tell employers about yourself...">${p.bio||''}</textarea></div>
-        <button class="btn btn-primary" onclick="saveBasicProfile()"><i class="fas fa-save"></i> Save Profile</button>
+        <div class="form-group"><label class="form-label">Bio / Summary</label>
+          <div style="position:relative;">
+            <textarea id="p-bio" class="form-control" rows="4" placeholder="Tell employers about yourself...">${p.bio||''}</textarea>
+            <button type="button" class="btn btn-outline btn-sm" id="ai-gen-btn" onclick="generateAISummary()" style="position:absolute;top:8px;right:8px;font-size:11px;padding:4px 8px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <i class="fas fa-magic"></i> AI Generate
+            </button>
+          </div>
+          <div id="ai-summary-status" style="font-size:12px;color:#7c3aed;margin-top:4px;display:none;"></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-primary" onclick="saveBasicProfile()"><i class="fas fa-save"></i> Save Profile</button>
+          <button class="btn btn-outline" onclick="generateAISummary()" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;border:none;">
+            <i class="fas fa-magic"></i> Auto-Generate Summary
+          </button>
+        </div>
       </div>
     </div>
     <div id="profile-tab-skills" style="display:none;">
@@ -1785,7 +1800,52 @@ async function saveBasicProfile() {
       localStorage.setItem('mp_user', JSON.stringify(stored));
       currentUser = stored;
     }
+    // Auto-generate AI summary after profile save if bio is empty
+    if (!body.bio || body.bio.trim() === '') {
+      setTimeout(() => generateAISummary(true), 500);
+    }
   } else toast(res.message, 'error');
+}
+
+async function generateAISummary(auto = false) {
+  const btn = document.getElementById('ai-gen-btn');
+  const statusEl = document.getElementById('ai-summary-status');
+  const bioEl = document.getElementById('p-bio');
+
+  if (btn) {
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    btn.disabled = true;
+  }
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = '<i class="fas fa-magic"></i> AI is generating your professional summary...';
+  }
+
+  try {
+    const res = await api('POST', '/profile/generate-summary', {});
+    if (res.success) {
+      if (bioEl) bioEl.value = res.summary;
+      if (statusEl) {
+        statusEl.innerHTML = '<i class="fas fa-check-circle" style="color:#16a34a"></i> Summary generated and saved automatically!';
+        setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+      }
+      if (!auto) toast('AI summary generated!', 'success');
+    } else {
+      if (statusEl) {
+        statusEl.innerHTML = `<i class="fas fa-times-circle" style="color:#dc2626"></i> ${res.message}`;
+        setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+      }
+      if (!auto) toast(res.message, 'error');
+    }
+  } catch (e) {
+    if (statusEl) { statusEl.style.display = 'none'; }
+    if (!auto) toast('Failed to generate summary', 'error');
+  } finally {
+    if (btn) {
+      btn.innerHTML = '<i class="fas fa-magic"></i> AI Generate';
+      btn.disabled = false;
+    }
+  }
 }
 
 function addEducation() {
@@ -1822,6 +1882,10 @@ async function removeEducation(idx) {
   const res = await api('PUT', '/profile', { education: current });
   if (res.success) { toast('Removed', 'info'); loadMyProfile(); }
 }
+
+// Make functions globally accessible
+window.generateAISummary = generateAISummary;
+window.saveBasicProfile = saveBasicProfile;
 
 // =============================================
 // APP INITIALIZATION

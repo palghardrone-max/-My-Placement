@@ -457,3 +457,59 @@ textarea.form-control { resize: vertical; min-height: 100px; }
 /* Scrollable content */
 .scroll-y { overflow-y: auto; }
 .max-h-screen { max-height: calc(100vh - 200px); }
+
+/* AI Summary Button */
+.ai-generate-btn {
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: opacity 0.2s;
+}
+.ai-generate-btn:hover { opacity: 0.9; }
+.ai-generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* AI Summary Textarea wrapper */
+.bio-textarea-wrapper { position: relative; }
+.bio-textarea-wrapper textarea { padding-right: 130px; }
+
+/* AI status message */
+.ai-status {
+  font-size: 12px;
+  color: #7c3aed;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #f5f3ff;
+  border-radius: 6px;
+  border-left: 3px solid #7c3aed;
+}
+
+/* Logo in auth */
+.auth-logo img { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+
+/* Sidebar logo image */
+.sidebar-logo img { 
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
+}
+
+/* Profile complete indicator */
+.profile-complete-bar {
+  background: #e2e8f0;
+  border-radius: 10px;
+  height: 8px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+.profile-complete-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #2563eb);
+  border-radius: 10px;
+  transition: width 0.5s ease;
+}
