@@ -136,7 +136,6 @@ function renderLogin(role = null) {
     <div class="auth-container">
       <div class="auth-card">
         <div class="auth-logo">
-          <img src="/static/logo.png" alt="Arc Cad Soft" style="max-width:180px;max-height:70px;object-fit:contain;margin-bottom:6px;" onerror="this.style.display='none'">
           <h1><i class="fas fa-briefcase" style="color:#2563eb"></i> My Placement</h1>
           <p>Smart Job Matching Platform</p>
         </div>
@@ -334,7 +333,6 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
     <div class="dashboard-layout">
       <aside class="sidebar">
         <div class="sidebar-logo">
-          <img src="/static/logo.png" alt="Arc Cad Soft" style="max-width:150px;max-height:50px;object-fit:contain;display:block;margin-bottom:4px;" onerror="this.style.display='none'">
           <h2><i class="fas fa-briefcase"></i> My Placement</h2>
           <p>${roleLabels[role] || role} Panel</p>
         </div>
