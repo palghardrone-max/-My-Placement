@@ -69,6 +69,11 @@ profile.put('/', async (c) => {
     if (!user || user.role !== 'employee') return c.json({ success: false, message: 'Employee access required' }, 403)
 
     const body = await c.req.json()
+
+    // Helper: convert undefined to null so D1 doesn't throw D1_TYPE_ERROR
+    const n = (v: any) => (v === undefined ? null : v)
+    const ns = (v: any) => (v === undefined || v === null ? null : JSON.stringify(v))
+
     const {
       full_name, phone, date_of_birth, gender, city, state, country, pincode,
       current_job_title, current_company, total_experience_years, expected_salary,
@@ -108,15 +113,15 @@ profile.put('/', async (c) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ?
     `).bind(
-      full_name, phone, date_of_birth, gender, city, state, country, pincode,
-      current_job_title, current_company, total_experience_years, expected_salary,
-      current_salary, notice_period, is_actively_looking,
-      skills ? JSON.stringify(skills) : null,
-      education ? JSON.stringify(education) : null,
-      work_experience ? JSON.stringify(work_experience) : null,
-      certifications ? JSON.stringify(certifications) : null,
-      languages ? JSON.stringify(languages) : null,
-      bio, linkedin_url, github_url, portfolio_url, profile_photo, resume_url,
+      n(full_name), n(phone), n(date_of_birth), n(gender),
+      n(city), n(state), n(country), n(pincode),
+      n(current_job_title), n(current_company),
+      n(total_experience_years), n(expected_salary),
+      n(current_salary), n(notice_period), n(is_actively_looking),
+      ns(skills), ns(education), ns(work_experience),
+      ns(certifications), ns(languages),
+      n(bio), n(linkedin_url), n(github_url),
+      n(portfolio_url), n(profile_photo), n(resume_url),
       user.userId
     ).run()
 

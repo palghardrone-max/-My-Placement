@@ -1687,6 +1687,9 @@ async function loadMyProfile() {
           <button class="btn btn-outline" onclick="generateAISummary()" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;border:none;">
             <i class="fas fa-magic"></i> Auto-Generate Summary
           </button>
+          <button class="btn btn-outline" onclick="downloadResumeAsPDF()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;">
+            <i class="fas fa-file-pdf"></i> Download as PDF
+          </button>
         </div>
       </div>
     </div>
@@ -1881,9 +1884,187 @@ async function removeEducation(idx) {
   if (res.success) { toast('Removed', 'info'); loadMyProfile(); }
 }
 
+// =============================================
+// RESUME PDF DOWNLOAD
+// =============================================
+async function downloadResumeAsPDF() {
+  toast('Preparing your resume...', 'info');
+
+  // Fetch latest profile data
+  const res = await api('GET', '/profile');
+  if (!res.success) { toast('Failed to load profile', 'error'); return; }
+
+  const p = res.profile || {};
+  const skills     = JSON.parse(p.skills || '[]');
+  const education  = JSON.parse(p.education || '[]');
+  const workExp    = JSON.parse(p.work_experience || '[]');
+  const certs      = JSON.parse(p.certifications || '[]');
+  const langs      = JSON.parse(p.languages || '[]');
+
+  const name    = p.full_name || 'Your Name';
+  const title   = p.current_job_title || '';
+  const email   = res.profile?.email || currentUser?.email || '';
+  const phone   = p.phone || '';
+  const city    = [p.city, p.state, p.country].filter(Boolean).join(', ');
+  const exp     = p.total_experience_years ? `${p.total_experience_years} Years Experience` : '';
+  const bio     = p.bio || '';
+  const linkedin = p.linkedin_url || '';
+  const github   = p.github_url || '';
+  const portfolio = p.portfolio_url || '';
+
+  const sectionTitle = (icon, text) =>
+    `<div style="display:flex;align-items:center;gap:8px;margin:22px 0 10px;border-bottom:2px solid #2563eb;padding-bottom:5px;">
+       <span style="color:#2563eb;font-size:16px;">${icon}</span>
+       <span style="font-size:15px;font-weight:700;color:#1e3a5f;letter-spacing:0.5px;">${text}</span>
+     </div>`;
+
+  const contactLine = (icon, val, href = '') => val
+    ? `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:16px;font-size:12px;color:#374151;">
+         <span style="color:#2563eb;">${icon}</span>
+         ${href ? `<a href="${href}" style="color:#374151;text-decoration:none;">${val}</a>` : val}
+       </span>`
+    : '';
+
+  const skillsHtml = skills.length
+    ? skills.map(s => `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:20px;padding:3px 12px;margin:3px;font-size:12px;font-weight:500;">${s}</span>`).join('')
+    : '<span style="color:#94a3b8;font-size:13px;">No skills added</span>';
+
+  const eduHtml = education.length
+    ? education.map(e => `
+        <div style="margin-bottom:10px;">
+          <div style="font-weight:600;font-size:13px;color:#1e3a5f;">${e.degree || ''}</div>
+          <div style="font-size:12px;color:#374151;">${e.institution || ''}</div>
+          <div style="font-size:11px;color:#64748b;">${[e.year, e.grade ? 'Grade: '+e.grade : ''].filter(Boolean).join(' · ')}</div>
+        </div>`).join('')
+    : '<p style="color:#94a3b8;font-size:13px;">No education added</p>';
+
+  const workHtml = workExp.length
+    ? workExp.map(w => `
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <div>
+              <div style="font-weight:600;font-size:13px;color:#1e3a5f;">${w.title || w.role || 'Role'}</div>
+              <div style="font-size:12px;color:#374151;">${w.company || ''} ${w.location ? '· '+w.location : ''}</div>
+            </div>
+            <div style="font-size:11px;color:#64748b;white-space:nowrap;">${w.duration || w.years || ''}</div>
+          </div>
+          ${w.description ? `<div style="font-size:12px;color:#475569;margin-top:4px;line-height:1.5;">${w.description}</div>` : ''}
+        </div>`).join('')
+    : '<p style="color:#94a3b8;font-size:13px;">No work experience added</p>';
+
+  const certsHtml = certs.length
+    ? certs.map(c => `<div style="font-size:12px;color:#374151;margin-bottom:4px;">✔ ${c}</div>`).join('')
+    : '';
+
+  const langsHtml = langs.length
+    ? langs.map(l => `<span style="display:inline-block;background:#f0fdf4;color:#166534;border-radius:20px;padding:3px 12px;margin:3px;font-size:12px;border:1px solid #86efac;">${l}</span>`).join('')
+    : '';
+
+  const linksHtml = [
+    linkedin ? `<div style="font-size:12px;margin-bottom:3px;">🔗 LinkedIn: <a href="${linkedin}" style="color:#2563eb;">${linkedin}</a></div>` : '',
+    github ? `<div style="font-size:12px;margin-bottom:3px;">💻 GitHub: <a href="${github}" style="color:#2563eb;">${github}</a></div>` : '',
+    portfolio ? `<div style="font-size:12px;margin-bottom:3px;">🌐 Portfolio: <a href="${portfolio}" style="color:#2563eb;">${portfolio}</a></div>` : '',
+  ].filter(Boolean).join('');
+
+  const salaryLine = p.expected_salary
+    ? `<div style="font-size:12px;color:#64748b;margin-top:4px;">Expected Salary: <b>₹${(p.expected_salary/100000).toFixed(1)}L/yr</b> · Notice: <b>${p.notice_period || 0} days</b></div>` : '';
+
+  const resumeHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Resume - ${name}</title>
+  <style>
+    @page { margin: 15mm 18mm; size: A4; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: white; font-size: 13px; line-height: 1.6; }
+    .header { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: white; padding: 28px 32px 22px; }
+    .name { font-size: 28px; font-weight: 800; letter-spacing: 0.5px; }
+    .job-title { font-size: 15px; opacity: 0.9; margin-top: 4px; font-weight: 400; }
+    .contact-bar { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .contact-item { display: inline-flex; align-items: center; gap: 5px; margin-right: 14px; font-size: 12px; opacity: 0.92; }
+    .body { padding: 0 32px 24px; }
+    .two-col { display: grid; grid-template-columns: 1fr 260px; gap: 28px; margin-top: 6px; }
+    .left { }
+    .right { border-left: 1px solid #e2e8f0; padding-left: 20px; }
+    a { color: #2563eb; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="name">${name}</div>
+    ${title ? `<div class="job-title">${title}${exp ? ' · ' + exp : ''}</div>` : (exp ? `<div class="job-title">${exp}</div>` : '')}
+    <div class="contact-bar">
+      ${email ? `<span class="contact-item">✉ ${email}</span>` : ''}
+      ${phone ? `<span class="contact-item">📞 ${phone}</span>` : ''}
+      ${city ? `<span class="contact-item">📍 ${city}</span>` : ''}
+      ${p.is_actively_looking ? `<span class="contact-item">🟢 Actively Looking</span>` : ''}
+    </div>
+    ${salaryLine ? `<div style="margin-top:8px;font-size:12px;opacity:0.88;">${salaryLine.replace(/<[^>]*>/g,'').trim()}</div>` : ''}
+  </div>
+
+  <div class="body">
+    <div class="two-col">
+      <div class="left">
+        ${bio ? `
+          ${sectionTitle('👤', 'Professional Summary')}
+          <p style="font-size:13px;color:#374151;line-height:1.7;">${bio}</p>` : ''}
+
+        ${workExp.length ? `
+          ${sectionTitle('💼', 'Work Experience')}
+          ${workHtml}` : ''}
+
+        ${education.length ? `
+          ${sectionTitle('🎓', 'Education')}
+          ${eduHtml}` : ''}
+
+        ${certs.length ? `
+          ${sectionTitle('🏆', 'Certifications')}
+          ${certsHtml}` : ''}
+      </div>
+
+      <div class="right">
+        ${skills.length ? `
+          ${sectionTitle('⚡', 'Skills')}
+          <div>${skillsHtml}</div>` : ''}
+
+        ${langs.length ? `
+          ${sectionTitle('🌐', 'Languages')}
+          <div>${langsHtml}</div>` : ''}
+
+        ${(linkedin || github || portfolio) ? `
+          ${sectionTitle('🔗', 'Links')}
+          ${linksHtml}` : ''}
+
+        ${p.expected_salary ? `
+          ${sectionTitle('💰', 'Preferences')}
+          <div style="font-size:12px;color:#374151;">Expected: <b>₹${(p.expected_salary/100000).toFixed(1)}L/yr</b></div>
+          <div style="font-size:12px;color:#374151;">Notice Period: <b>${p.notice_period || 0} days</b></div>` : ''}
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  // Open in new tab and trigger print dialog (browser saves as PDF)
+  const printWin = window.open('', '_blank', 'width=850,height=1100');
+  printWin.document.write(resumeHTML);
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(() => {
+    printWin.print();
+  }, 600);
+
+  toast('Resume ready! Use "Save as PDF" in the print dialog.', 'success');
+}
+
 // Make functions globally accessible
 window.generateAISummary = generateAISummary;
 window.saveBasicProfile = saveBasicProfile;
+window.downloadResumeAsPDF = downloadResumeAsPDF;
 
 // =============================================
 // APP INITIALIZATION
