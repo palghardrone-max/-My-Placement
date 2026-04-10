@@ -331,10 +331,18 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
 
   return `
     <div class="dashboard-layout">
-      <aside class="sidebar">
+      <!-- Sidebar overlay (mobile tap-outside to close) -->
+      <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+      <aside class="sidebar" id="main-sidebar">
         <div class="sidebar-logo">
-          <h2><i class="fas fa-briefcase"></i> My Placement</h2>
-          <p>${roleLabels[role] || role} Panel</p>
+          <div class="sidebar-logo-inner">
+            <h2><i class="fas fa-briefcase"></i> My Placement</h2>
+            <p>${roleLabels[role] || role} Panel</p>
+          </div>
+          <button class="sidebar-close-btn" onclick="closeSidebar()" title="Close menu">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
         <nav class="sidebar-nav">
           ${navHtml}
@@ -350,12 +358,21 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
           </button>
         </div>
       </aside>
+
       <main class="main-content">
         <header class="top-header">
-          <h1 class="page-title">${pageTitle}</h1>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:13px;color:#64748b;">${currentUser?.email || ''}</span>
-            <div class="sidebar-avatar" style="width:36px;height:36px;background:linear-gradient(135deg,#2563eb,#7c3aed);">${initials}</div>
+          <!-- Hamburger: only visible on mobile -->
+          <button class="hamburger-btn" id="hamburger-btn" onclick="openSidebar()" title="Menu">
+            <i class="fas fa-bars"></i>
+          </button>
+          <h1 class="page-title" id="page-title">${pageTitle}</h1>
+          <div class="header-right">
+            <span class="header-email">${currentUser?.email || ''}</span>
+            <div class="sidebar-avatar header-avatar-circle" style="width:34px;height:34px;background:linear-gradient(135deg,#2563eb,#7c3aed);flex-shrink:0;">${initials}</div>
+            <!-- Mobile logout button — always visible on small screens -->
+            <button class="header-logout-btn" onclick="doLogout()" title="Logout">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
           </div>
         </header>
         <div class="content-area" id="content-area">
@@ -366,7 +383,25 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
 }
 
 let currentRole = null;
+
+// ── Sidebar mobile open/close ──
+function openSidebar() {
+  const sb = document.getElementById('main-sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (sb) sb.classList.add('open');
+  if (ov) ov.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  const sb = document.getElementById('main-sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (sb) sb.classList.remove('open');
+  if (ov) ov.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
 function navigateTo(section) {
+  closeSidebar();
   if (currentRole === 'super_admin') loadAdminSection(section);
   else if (currentRole === 'employer') loadEmployerSection(section);
   else if (currentRole === 'employee') loadEmployeeSection(section);
@@ -416,7 +451,7 @@ async function loadAdminDashboard() {
   const s = res.stats || {};
   const content = document.getElementById('content-area');
   content.innerHTML = `
-    <div class="grid-4" style="margin-bottom:24px;">
+    <div class="stats-grid">
       <div class="stat-card" style="border-left-color:#2563eb;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${s.totalUsers||0}</div><div class="stat-label">Total Users</div></div>
@@ -482,7 +517,7 @@ async function loadAdminCompanies() {
   content.innerHTML = `
     <div class="card">
       <div class="card-title"><i class="fas fa-building"></i> All Companies (${(res.companies||[]).length})</div>
-      <div style="overflow-x:auto;">
+      <div class="table-responsive">
         <table class="data-table">
           <thead><tr><th>Company</th><th>Industry</th><th>Location</th><th>Jobs</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
@@ -523,7 +558,7 @@ async function loadAdminEmployees() {
   content.innerHTML = `
     <div class="card">
       <div class="card-title"><i class="fas fa-users"></i> All Employees (${(res.employees||[]).length})</div>
-      <div style="overflow-x:auto;">
+      <div class="table-responsive">
         <table class="data-table">
           <thead><tr><th>Employee</th><th>Location</th><th>Experience</th><th>Applications</th><th>Rating</th><th>Flags</th><th>Status</th></tr></thead>
           <tbody>
@@ -553,7 +588,7 @@ async function loadAdminJobs() {
   content.innerHTML = `
     <div class="card">
       <div class="card-title"><i class="fas fa-briefcase"></i> All Jobs (${(res.jobs||[]).length})</div>
-      <div style="overflow-x:auto;">
+      <div class="table-responsive">
         <table class="data-table">
           <thead><tr><th>Job Title</th><th>Company</th><th>Location</th><th>Type</th><th>Applications</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
@@ -641,7 +676,7 @@ async function loadAdminUsers() {
   content.innerHTML = `
     <div class="card">
       <div class="card-title"><i class="fas fa-user-cog"></i> All Users (${(res.users||[]).length})</div>
-      <div style="overflow-x:auto;">
+      <div class="table-responsive">
         <table class="data-table">
           <thead><tr><th>Email</th><th>Role</th><th>Joined</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
@@ -712,7 +747,7 @@ async function loadEmployerHome() {
   const recentJobs = (jobsRes.jobs || []).slice(0, 3);
   const content = document.getElementById('content-area');
   content.innerHTML = `
-    <div class="grid-4" style="margin-bottom:24px;">
+    <div class="stats-grid">
       <div class="stat-card" style="border-left-color:#2563eb;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${s.totalJobs||0}</div><div class="stat-label">Active Jobs</div></div>
@@ -1297,7 +1332,7 @@ async function loadEmployeeDashboard() {
   const profileComplete = [p.full_name, p.city, p.current_job_title, skills.length > 0].filter(Boolean).length;
   const profilePercent = Math.round((profileComplete / 4) * 100);
   content.innerHTML = `
-    <div class="grid-4" style="margin-bottom:24px;">
+    <div class="stats-grid">
       <div class="stat-card" style="border-left-color:#2563eb;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${applications.length}</div><div class="stat-label">Applications</div></div>
@@ -1682,7 +1717,7 @@ async function loadMyProfile() {
           </div>
           <div id="ai-summary-status" style="font-size:12px;color:#7c3aed;margin-top:4px;display:none;"></div>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <div class="btn-row" style="margin-top:4px;">
           <button class="btn btn-primary" onclick="saveBasicProfile()"><i class="fas fa-save"></i> Save Profile</button>
           <button class="btn btn-outline" onclick="generateAISummary()" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;border:none;">
             <i class="fas fa-magic"></i> Auto-Generate Summary
@@ -2065,6 +2100,8 @@ async function downloadResumeAsPDF() {
 window.generateAISummary = generateAISummary;
 window.saveBasicProfile = saveBasicProfile;
 window.downloadResumeAsPDF = downloadResumeAsPDF;
+window.openSidebar = openSidebar;
+window.closeSidebar = closeSidebar;
 
 // =============================================
 // APP INITIALIZATION
