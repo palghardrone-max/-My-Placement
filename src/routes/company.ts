@@ -249,4 +249,308 @@ company.get('/stats', async (c) => {
   }
 })
 
+// =============================================
+// HRMS - ATTENDANCE MANAGEMENT
+// =============================================
+
+// Get all employees of the company (hired/employed)
+company.get('/hrms/employees', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    // Get employees who were hired via job applications OR manually added to HRMS
+    const employees = await c.env.DB.prepare(`
+      SELECT DISTINCT ep.id, ep.full_name, ep.phone, ep.current_job_title, ep.city,
+             u.email, he.id as hrms_id, he.designation, he.department,
+             he.join_date, he.basic_salary, he.employment_type, he.is_active as hrms_active
+      FROM employee_profiles ep
+      JOIN users u ON ep.user_id = u.id
+      LEFT JOIN hrms_employees he ON he.employee_profile_id = ep.id AND he.company_id = ?
+      WHERE he.company_id = ? OR ep.id IN (
+        SELECT DISTINCT ja.employee_id FROM job_applications ja
+        JOIN jobs j ON ja.job_id = j.id
+        WHERE j.company_id = ? AND ja.status IN ('hired','offered')
+      )
+      ORDER BY ep.full_name
+    `).bind(comp.id, comp.id, comp.id).all()
+
+    return c.json({ success: true, employees: employees.results })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// Search all registered employees (for Add to HRMS modal)
+company.get('/hrms/employees/search', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const { q } = c.req.query()
+    let query = `
+      SELECT ep.id, ep.full_name, ep.current_job_title, ep.city, u.email,
+             CASE WHEN he.id IS NOT NULL THEN 1 ELSE 0 END as already_in_hrms
+      FROM employee_profiles ep
+      JOIN users u ON ep.user_id = u.id
+      LEFT JOIN hrms_employees he ON he.employee_profile_id = ep.id AND he.company_id = ?
+      WHERE u.is_active = 1
+    `
+    const params: any[] = [comp.id]
+
+    if (q && q.trim()) {
+      query += ` AND (ep.full_name LIKE ? OR u.email LIKE ? OR ep.current_job_title LIKE ?)`
+      const likeQ = `%${q.trim()}%`
+      params.push(likeQ, likeQ, likeQ)
+    }
+
+    query += ' ORDER BY ep.full_name LIMIT 50'
+
+    const employees = await c.env.DB.prepare(query).bind(...params).all()
+    return c.json({ success: true, employees: employees.results })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// Add employee to HRMS
+company.post('/hrms/employees', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const body = await c.req.json()
+    const { employee_profile_id, designation, department, join_date, basic_salary, employment_type } = body
+
+    const n = (v: any) => v === undefined ? null : v
+
+    // Check if already added
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM hrms_employees WHERE company_id = ? AND employee_profile_id = ?'
+    ).bind(comp.id, employee_profile_id).first()
+
+    if (existing) {
+      // Update
+      await c.env.DB.prepare(`
+        UPDATE hrms_employees SET designation=?, department=?, join_date=?, basic_salary=?, employment_type=?, updated_at=CURRENT_TIMESTAMP
+        WHERE company_id=? AND employee_profile_id=?
+      `).bind(n(designation), n(department), n(join_date), n(basic_salary), n(employment_type), comp.id, employee_profile_id).run()
+    } else {
+      await c.env.DB.prepare(`
+        INSERT INTO hrms_employees (company_id, employee_profile_id, designation, department, join_date, basic_salary, employment_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(comp.id, employee_profile_id, n(designation), n(department), n(join_date), n(basic_salary), n(employment_type)).run()
+    }
+
+    return c.json({ success: true, message: 'Employee added to HRMS' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// Mark attendance
+company.post('/hrms/attendance', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const body = await c.req.json()
+    const { employee_profile_id, date, status, check_in, check_out, notes } = body
+
+    if (!employee_profile_id || !date || !status)
+      return c.json({ success: false, message: 'Employee, date and status are required' }, 400)
+
+    const n = (v: any) => v === undefined ? null : v
+
+    // Check if attendance already marked for this day
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM attendance WHERE company_id = ? AND employee_profile_id = ? AND date = ?'
+    ).bind(comp.id, employee_profile_id, date).first() as any
+
+    if (existing) {
+      await c.env.DB.prepare(`
+        UPDATE attendance SET status=?, check_in=?, check_out=?, notes=?, updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
+      `).bind(status, n(check_in), n(check_out), n(notes), existing.id).run()
+    } else {
+      await c.env.DB.prepare(`
+        INSERT INTO attendance (company_id, employee_profile_id, date, status, check_in, check_out, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(comp.id, employee_profile_id, date, status, n(check_in), n(check_out), n(notes)).run()
+    }
+
+    return c.json({ success: true, message: 'Attendance marked' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// Get attendance for a month
+company.get('/hrms/attendance', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const { month, year, employee_id } = c.req.query()
+    const m = month || new Date().getMonth() + 1
+    const y = year || new Date().getFullYear()
+
+    let query = `
+      SELECT a.*, ep.full_name, ep.current_job_title
+      FROM attendance a
+      JOIN employee_profiles ep ON a.employee_profile_id = ep.id
+      WHERE a.company_id = ? AND strftime('%m', a.date) = ? AND strftime('%Y', a.date) = ?
+    `
+    const params: any[] = [comp.id, String(m).padStart(2, '0'), String(y)]
+
+    if (employee_id) { query += ' AND a.employee_profile_id = ?'; params.push(employee_id) }
+    query += ' ORDER BY a.date DESC, ep.full_name'
+
+    const records = await c.env.DB.prepare(query).bind(...params).all()
+    return c.json({ success: true, attendance: records.results })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// Bulk attendance (mark all employees for a day)
+company.post('/hrms/attendance/bulk', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const { date, records } = await c.req.json() // records: [{employee_profile_id, status, check_in, check_out}]
+    if (!date || !records?.length) return c.json({ success: false, message: 'Date and records required' }, 400)
+
+    for (const rec of records) {
+      const existing = await c.env.DB.prepare(
+        'SELECT id FROM attendance WHERE company_id=? AND employee_profile_id=? AND date=?'
+      ).bind(comp.id, rec.employee_profile_id, date).first() as any
+
+      if (existing) {
+        await c.env.DB.prepare('UPDATE attendance SET status=?,check_in=?,check_out=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
+          .bind(rec.status, rec.check_in || null, rec.check_out || null, existing.id).run()
+      } else {
+        await c.env.DB.prepare('INSERT INTO attendance (company_id,employee_profile_id,date,status,check_in,check_out) VALUES (?,?,?,?,?,?)')
+          .bind(comp.id, rec.employee_profile_id, date, rec.status, rec.check_in || null, rec.check_out || null).run()
+      }
+    }
+
+    return c.json({ success: true, message: `Attendance marked for ${records.length} employees` })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// =============================================
+// HRMS - SALARY SLIP GENERATION
+// =============================================
+
+// Get salary slips
+company.get('/hrms/salary', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id, company_name FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const { month, year } = c.req.query()
+    const m = month || new Date().getMonth() + 1
+    const y = year || new Date().getFullYear()
+
+    const slips = await c.env.DB.prepare(`
+      SELECT ss.*, ep.full_name, ep.current_job_title, ep.phone, u.email,
+             he.designation, he.department
+      FROM salary_slips ss
+      JOIN employee_profiles ep ON ss.employee_profile_id = ep.id
+      JOIN users u ON ep.user_id = u.id
+      LEFT JOIN hrms_employees he ON he.company_id = ss.company_id AND he.employee_profile_id = ss.employee_profile_id
+      WHERE ss.company_id = ? AND ss.month = ? AND ss.year = ?
+      ORDER BY ep.full_name
+    `).bind(comp.id, Number(m), Number(y)).all()
+
+    return c.json({ success: true, slips: slips.results, company: comp })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// Generate salary slip
+company.post('/hrms/salary', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id, company_name FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const body = await c.req.json()
+    const { employee_profile_id, month, year, basic_salary, hra, ta, other_allowances, pf_deduction, tax_deduction, other_deductions, working_days, present_days, notes } = body
+
+    if (!employee_profile_id || !month || !year || !basic_salary)
+      return c.json({ success: false, message: 'Employee, month, year and basic salary are required' }, 400)
+
+    const n = (v: any) => v === undefined ? null : (v === '' ? 0 : v)
+
+    const basicSal = Number(basic_salary) || 0
+    const hraAmt = Number(hra) || Math.round(basicSal * 0.4)
+    const taAmt = Number(ta) || Math.round(basicSal * 0.1)
+    const otherAllow = Number(other_allowances) || 0
+    const grossSalary = basicSal + hraAmt + taAmt + otherAllow
+
+    const pfDed = Number(pf_deduction) || Math.round(basicSal * 0.12)
+    const taxDed = Number(tax_deduction) || 0
+    const otherDed = Number(other_deductions) || 0
+    const totalDeductions = pfDed + taxDed + otherDed
+
+    const wDays = Number(working_days) || 26
+    const pDays = Number(present_days) || wDays
+    const perDaySalary = grossSalary / wDays
+    const lossOfPay = pDays < wDays ? Math.round((wDays - pDays) * perDaySalary) : 0
+    const netSalary = Math.round(grossSalary - totalDeductions - lossOfPay)
+
+    // Check if slip already exists
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM salary_slips WHERE company_id=? AND employee_profile_id=? AND month=? AND year=?'
+    ).bind(comp.id, employee_profile_id, Number(month), Number(year)).first() as any
+
+    if (existing) {
+      await c.env.DB.prepare(`
+        UPDATE salary_slips SET basic_salary=?,hra=?,ta=?,other_allowances=?,gross_salary=?,
+        pf_deduction=?,tax_deduction=?,other_deductions=?,total_deductions=?,
+        loss_of_pay=?,net_salary=?,working_days=?,present_days=?,notes=?,updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
+      `).bind(basicSal, hraAmt, taAmt, otherAllow, grossSalary, pfDed, taxDed, otherDed, totalDeductions, lossOfPay, netSalary, wDays, pDays, n(notes), existing.id).run()
+    } else {
+      await c.env.DB.prepare(`
+        INSERT INTO salary_slips (company_id,employee_profile_id,month,year,basic_salary,hra,ta,other_allowances,gross_salary,pf_deduction,tax_deduction,other_deductions,total_deductions,loss_of_pay,net_salary,working_days,present_days,notes)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `).bind(comp.id, employee_profile_id, Number(month), Number(year), basicSal, hraAmt, taAmt, otherAllow, grossSalary, pfDed, taxDed, otherDed, totalDeductions, lossOfPay, netSalary, wDays, pDays, n(notes)).run()
+    }
+
+    return c.json({ success: true, message: 'Salary slip generated', data: { grossSalary, totalDeductions, netSalary } })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
 export default company

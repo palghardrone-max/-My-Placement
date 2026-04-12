@@ -219,4 +219,108 @@ admin.put('/jobs/:id/toggle', async (c) => {
   }
 })
 
+// ── CREATE COMPANY (admin creates a new company + user account) ──
+admin.post('/companies', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const body = await c.req.json()
+    const { company_name, email, password, industry, city, state, country, website, contact_phone } = body
+
+    if (!company_name || !email || !password)
+      return c.json({ success: false, message: 'Company name, email and password are required' }, 400)
+
+    const existing = await c.env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()
+    if (existing) return c.json({ success: false, message: 'Email already registered' }, 400)
+
+    // Hash password (simple hash like auth route)
+    const encoder = new TextEncoder()
+    const data = encoder.encode(password)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    const shortHash = hashHex.substring(0, 16)
+
+    // Create user
+    const userResult = await c.env.DB.prepare(
+      'INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)'
+    ).bind(email, shortHash, 'employer').run()
+
+    const newUserId = userResult.meta.last_row_id
+
+    // Create company profile
+    await c.env.DB.prepare(`
+      INSERT INTO companies (user_id, company_name, industry, city, state, country, website, contact_phone, contact_email)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      newUserId, company_name,
+      industry || null, city || null, state || null,
+      country || 'India', website || null, contact_phone || null, email
+    ).run()
+
+    return c.json({ success: true, message: `Company "${company_name}" created successfully` })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── DISABLE / ENABLE COMPANY ──
+admin.put('/companies/:id/toggle', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const compId = c.req.param('id')
+    // Get company's user_id first
+    const comp = await c.env.DB.prepare('SELECT user_id FROM companies WHERE id = ?').bind(compId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    await c.env.DB.prepare(
+      'UPDATE users SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?'
+    ).bind(comp.user_id).run()
+
+    const updatedUser = await c.env.DB.prepare('SELECT is_active FROM users WHERE id = ?').bind(comp.user_id).first() as any
+    const status = updatedUser?.is_active ? 'enabled' : 'disabled'
+    return c.json({ success: true, message: `Company ${status} successfully` })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── DELETE COMPANY ──
+admin.delete('/companies/:id', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const compId = c.req.param('id')
+    const comp = await c.env.DB.prepare('SELECT user_id FROM companies WHERE id = ?').bind(compId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    // Deactivate all jobs, then delete company + user
+    await c.env.DB.prepare('UPDATE jobs SET is_active = 0 WHERE company_id = ?').bind(compId).run()
+    await c.env.DB.prepare('DELETE FROM companies WHERE id = ?').bind(compId).run()
+    await c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(comp.user_id).run()
+
+    return c.json({ success: true, message: 'Company deleted successfully' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── DELETE REVIEW ──
+admin.delete('/reviews/:id', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const reviewId = c.req.param('id')
+    await c.env.DB.prepare('DELETE FROM employee_reviews WHERE id = ?').bind(reviewId).run()
+    return c.json({ success: true, message: 'Review deleted successfully' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
 export default admin

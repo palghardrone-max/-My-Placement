@@ -307,6 +307,7 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
       { id: 'post-job', icon: 'fa-plus-circle', label: 'Post New Job' },
       { id: 'my-jobs', icon: 'fa-briefcase', label: 'My Jobs' },
       { id: 'applications', icon: 'fa-file-alt', label: 'Applications' },
+      { id: 'hrms', icon: 'fa-id-badge', label: 'HRMS' },
       { id: 'reviews', icon: 'fa-star', label: 'Employee Reviews' },
       { id: 'company-profile', icon: 'fa-building', label: 'Company Profile' },
     ],
@@ -515,8 +516,11 @@ async function loadAdminCompanies() {
   const res = await api('GET', '/admin/companies');
   const content = document.getElementById('content-area');
   content.innerHTML = `
-    <div class="card">
-      <div class="card-title"><i class="fas fa-building"></i> All Companies (${(res.companies||[]).length})</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0;"><i class="fas fa-building"></i> All Companies (${(res.companies||[]).length})</h2>
+      <button class="btn btn-primary" onclick="showCreateCompanyModal()"><i class="fas fa-plus"></i> Create New Company</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
       <div class="table-responsive">
         <table class="data-table">
           <thead><tr><th>Company</th><th>Industry</th><th>Location</th><th>Jobs</th><th>Status</th><th>Actions</th></tr></thead>
@@ -528,27 +532,99 @@ async function loadAdminCompanies() {
                   <div style="font-size:12px;color:#64748b;">${c.email}</div>
                 </td>
                 <td>${c.industry||'-'}</td>
-                <td>${c.city||'-'}, ${c.state||''}</td>
+                <td>${[c.city,c.state].filter(Boolean).join(', ')||'-'}</td>
                 <td><span class="badge badge-primary">${c.active_jobs||0} active</span></td>
                 <td>
                   ${c.is_verified ? '<span class="badge badge-success"><i class="fas fa-check"></i> Verified</span>' : '<span class="badge badge-warning">Pending</span>'}
-                  ${!c.is_active ? '<span class="badge badge-danger">Inactive</span>' : ''}
+                  ${!c.is_active ? ' <span class="badge badge-danger">Disabled</span>' : ''}
                 </td>
-                <td style="display:flex;gap:6px;">
-                  <button class="btn btn-sm ${c.is_verified?'btn-outline':'btn-success'}" onclick="adminVerifyCompany(${c.id},${c.is_verified?0:1})">
-                    ${c.is_verified?'Unverify':'Verify'}
-                  </button>
+                <td>
+                  <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                    <button class="btn btn-sm ${c.is_verified?'btn-outline':'btn-success'}" onclick="adminVerifyCompany(${c.id},${c.is_verified?0:1})">
+                      <i class="fas fa-${c.is_verified?'times':'check'}"></i> ${c.is_verified?'Unverify':'Verify'}
+                    </button>
+                    <button class="btn btn-sm ${c.is_active?'btn-warning':'btn-success'}" onclick="adminToggleCompany(${c.id})">
+                      <i class="fas fa-${c.is_active?'ban':'check-circle'}"></i> ${c.is_active?'Disable':'Enable'}
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="adminDeleteCompany(${c.id},'${c.company_name}')">
+                      <i class="fas fa-trash"></i> Delete
+                    </button>
+                  </div>
                 </td>
-              </tr>`).join('') || '<tr><td colspan="6" class="text-center">No companies</td></tr>'}
+              </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;color:#94a3b8;">No companies found</td></tr>'}
           </tbody>
         </table>
       </div>
     </div>`;
 }
 
+function showCreateCompanyModal() {
+  createModal('create-company-modal', 'Create New Company', `
+    <div class="grid-2">
+      <div class="form-group"><label class="form-label">Company Name *</label><input type="text" id="cc-name" class="form-control" placeholder="e.g. TechCorp Pvt Ltd"></div>
+      <div class="form-group"><label class="form-label">Login Email *</label><input type="email" id="cc-email" class="form-control" placeholder="hr@company.com"></div>
+      <div class="form-group"><label class="form-label">Login Password *</label><input type="password" id="cc-pass" class="form-control" placeholder="Min 6 characters"></div>
+      <div class="form-group"><label class="form-label">Industry</label><input type="text" id="cc-industry" class="form-control" placeholder="e.g. IT, Finance, Healthcare"></div>
+      <div class="form-group"><label class="form-label">City</label><input type="text" id="cc-city" class="form-control" placeholder="Mumbai"></div>
+      <div class="form-group"><label class="form-label">State</label><input type="text" id="cc-state" class="form-control" placeholder="Maharashtra"></div>
+      <div class="form-group"><label class="form-label">Website</label><input type="url" id="cc-website" class="form-control" placeholder="https://company.com"></div>
+      <div class="form-group"><label class="form-label">Contact Phone</label><input type="tel" id="cc-phone" class="form-control" placeholder="+91 9876543210"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-primary" onclick="adminCreateCompany()"><i class="fas fa-plus"></i> Create Company</button>
+      <button class="btn btn-outline" onclick="hideModal('create-company-modal')">Cancel</button>
+    </div>
+  `);
+}
+
+async function adminCreateCompany() {
+  const body = {
+    company_name: document.getElementById('cc-name').value.trim(),
+    email: document.getElementById('cc-email').value.trim(),
+    password: document.getElementById('cc-pass').value,
+    industry: document.getElementById('cc-industry').value.trim(),
+    city: document.getElementById('cc-city').value.trim(),
+    state: document.getElementById('cc-state').value.trim(),
+    website: document.getElementById('cc-website').value.trim(),
+    contact_phone: document.getElementById('cc-phone').value.trim(),
+  };
+  if (!body.company_name || !body.email || !body.password) return toast('Company name, email and password are required', 'error');
+  if (body.password.length < 6) return toast('Password must be at least 6 characters', 'error');
+  const res = await api('POST', '/admin/companies', body);
+  if (res.success) { toast(res.message, 'success'); hideModal('create-company-modal'); loadAdminCompanies(); }
+  else toast(res.message, 'error');
+}
+
 async function adminVerifyCompany(id, status) {
   const res = await api('PUT', `/admin/companies/${id}/verify`, { is_verified: status });
   if (res.success) { toast(res.message, 'success'); loadAdminCompanies(); }
+  else toast(res.message, 'error');
+}
+
+async function adminToggleCompany(id) {
+  const res = await api('PUT', `/admin/companies/${id}/toggle`);
+  if (res.success) { toast(res.message, 'success'); loadAdminCompanies(); }
+  else toast(res.message, 'error');
+}
+
+async function adminDeleteCompany(id, name) {
+  createModal('confirm-delete-company', '⚠️ Delete Company', `
+    <div style="text-align:center;padding:10px 0;">
+      <div style="font-size:48px;margin-bottom:12px;">🗑️</div>
+      <p style="font-size:15px;color:#374151;margin-bottom:6px;">Are you sure you want to delete</p>
+      <p style="font-size:18px;font-weight:700;color:#dc2626;">${name}?</p>
+      <p style="font-size:13px;color:#64748b;margin-top:8px;">This will permanently delete the company and all associated jobs. This action cannot be undone.</p>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+      <button class="btn btn-danger" onclick="confirmDeleteCompany(${id})"><i class="fas fa-trash"></i> Yes, Delete</button>
+      <button class="btn btn-outline" onclick="hideModal('confirm-delete-company')">Cancel</button>
+    </div>
+  `);
+}
+
+async function confirmDeleteCompany(id) {
+  const res = await api('DELETE', `/admin/companies/${id}`);
+  if (res.success) { toast(res.message, 'success'); hideModal('confirm-delete-company'); loadAdminCompanies(); }
   else toast(res.message, 'error');
 }
 
@@ -644,30 +720,54 @@ function showAdminReviewTab(tab, btn) {
 function renderAdminReviewCard(r) {
   return `
     <div class="review-card ${r.is_flagged ? 'review-flag' : ''}">
-      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <div>
           <span style="font-weight:700;">${r.employee_name}</span>
           <span style="color:#64748b;font-size:13px;"> reviewed by </span>
           <span style="font-weight:600;color:#2563eb;">${r.company_name}</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <div class="stars">${stars(r.rating)}</div>
           ${r.is_flagged ? '<span class="badge badge-danger"><i class="fas fa-flag"></i> Flagged</span>' : ''}
         </div>
       </div>
       <p style="color:#374151;font-size:14px;margin:8px 0;">${r.review_text||'No review text'}</p>
       ${r.flag_reason ? `<p style="color:#dc2626;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> ${r.flag_reason}</p>` : ''}
-      <div style="margin-top:10px;">
-        <button class="btn btn-sm ${r.is_flagged?'btn-success':'btn-danger'}" onclick="adminFlagReview(${r.id},${r.is_flagged?0:1})">
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn-sm ${r.is_flagged?'btn-success':'btn-warning'}" onclick="adminFlagReview(${r.id},${r.is_flagged?0:1})">
           ${r.is_flagged?'<i class="fas fa-check"></i> Remove Flag':'<i class="fas fa-flag"></i> Flag'}
         </button>
+        <button class="btn btn-sm btn-danger" onclick="adminDeleteReview(${r.id})">
+          <i class="fas fa-trash"></i> Delete Review
+        </button>
       </div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:8px;">${timeAgo(r.created_at)}</div>
     </div>`;
 }
 
 async function adminFlagReview(id, flag) {
   const res = await api('PUT', `/reviews/${id}/flag`, { is_flagged: flag, flag_reason: flag ? 'Flagged by admin' : '' });
   if (res.success) { toast('Review updated', 'success'); loadAdminReviews(); }
+}
+
+async function adminDeleteReview(id) {
+  createModal('confirm-del-review', '⚠️ Delete Review', `
+    <div style="text-align:center;padding:10px 0;">
+      <div style="font-size:48px;margin-bottom:12px;">🗑️</div>
+      <p style="font-size:15px;color:#374151;">Are you sure you want to permanently delete this review?</p>
+      <p style="font-size:13px;color:#64748b;margin-top:8px;">This action cannot be undone.</p>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+      <button class="btn btn-danger" onclick="confirmDeleteReview(${id})"><i class="fas fa-trash"></i> Yes, Delete</button>
+      <button class="btn btn-outline" onclick="hideModal('confirm-del-review')">Cancel</button>
+    </div>
+  `);
+}
+
+async function confirmDeleteReview(id) {
+  const res = await api('DELETE', `/admin/reviews/${id}`);
+  if (res.success) { toast('Review deleted', 'success'); hideModal('confirm-del-review'); loadAdminReviews(); }
+  else toast(res.message, 'error');
 }
 
 async function loadAdminUsers() {
@@ -719,7 +819,8 @@ async function loadEmployerSection(section) {
   const titles = {
     dashboard: 'Employer Dashboard', 'post-job': 'Post New Job',
     'my-jobs': 'My Job Listings', applications: 'Applications',
-    reviews: 'Employee Reviews', 'company-profile': 'Company Profile'
+    hrms: 'HRMS - HR Management', reviews: 'Employee Reviews',
+    'company-profile': 'Company Profile'
   };
   const navLinks = document.querySelectorAll('.nav-link');
   navLinks.forEach(l => l.classList.remove('active'));
@@ -734,6 +835,7 @@ async function loadEmployerSection(section) {
   else if (section === 'post-job') renderPostJobForm();
   else if (section === 'my-jobs') await loadMyJobs();
   else if (section === 'applications') await loadAllApplications();
+  else if (section === 'hrms') await loadHRMS();
   else if (section === 'reviews') await loadEmployerReviews();
   else if (section === 'company-profile') await loadCompanyProfile();
 }
@@ -1219,6 +1321,586 @@ async function submitReview(empId) {
   else toast(res.message, 'error');
 }
 
+// =============================================
+// HRMS - HR MANAGEMENT SYSTEM
+// =============================================
+let hrmsEmployees = [];
+let hrmsAttendanceMonth = new Date().getMonth() + 1;
+let hrmsAttendanceYear = new Date().getFullYear();
+let hrmsSalaryMonth = new Date().getMonth() + 1;
+let hrmsSalaryYear = new Date().getFullYear();
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+async function loadHRMS() {
+  const empRes = await api('GET', '/company/hrms/employees');
+  hrmsEmployees = empRes.employees || [];
+  const content = document.getElementById('content-area');
+  content.innerHTML = `
+    <div class="tabs" id="hrms-tabs">
+      <button class="tab-btn active" onclick="showHRMSTab('employees',this)"><i class="fas fa-users"></i> Employees</button>
+      <button class="tab-btn" onclick="showHRMSTab('attendance',this)"><i class="fas fa-calendar-check"></i> Attendance</button>
+      <button class="tab-btn" onclick="showHRMSTab('salary',this)"><i class="fas fa-money-bill-wave"></i> Salary Slips</button>
+    </div>
+    <div id="hrms-employees-tab"></div>
+    <div id="hrms-attendance-tab" style="display:none;"></div>
+    <div id="hrms-salary-tab" style="display:none;"></div>`;
+  renderHRMSEmployees();
+}
+
+function showHRMSTab(tab, btn) {
+  document.querySelectorAll('#hrms-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  ['employees','attendance','salary'].forEach(t => {
+    const el = document.getElementById(`hrms-${t}-tab`);
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'attendance') renderHRMSAttendance();
+  if (tab === 'salary') renderHRMSSalary();
+}
+
+function renderHRMSEmployees() {
+  const el = document.getElementById('hrms-employees-tab');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <h3 style="margin:0;font-size:16px;font-weight:700;color:#1e3a5f;">Team Members (${hrmsEmployees.length})</h3>
+      <button class="btn btn-primary btn-sm" onclick="showAddHRMSEmployeeModal()"><i class="fas fa-user-plus"></i> Add to HRMS</button>
+    </div>
+    ${hrmsEmployees.length ? hrmsEmployees.map(e => `
+      <div class="card" style="margin-bottom:12px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div class="sidebar-avatar" style="background:linear-gradient(135deg,#2563eb,#7c3aed);width:46px;height:46px;font-size:17px;flex-shrink:0;">
+            ${(e.full_name||'?')[0].toUpperCase()}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:15px;">${e.full_name||'-'}</div>
+            <div style="font-size:13px;color:#2563eb;">${e.designation||e.current_job_title||'Employee'}</div>
+            <div style="font-size:12px;color:#64748b;">${e.department||''} ${e.email ? '· '+e.email : ''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            ${e.basic_salary ? `<div style="font-weight:700;color:#16a34a;font-size:14px;">₹${Number(e.basic_salary).toLocaleString('en-IN')}/mo</div>` : '<div style="color:#94a3b8;font-size:12px;">Salary not set</div>'}
+            <div style="font-size:11px;color:#64748b;">${e.join_date ? 'Joined: '+e.join_date : ''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="showEditHRMSEmployee(${JSON.stringify(e).replace(/"/g,'&quot;')})"><i class="fas fa-edit"></i> Edit</button>
+          </div>
+        </div>
+      </div>`).join('') : `
+      <div class="empty-state">
+        <i class="fas fa-users"></i>
+        <h3>No employees in HRMS yet</h3>
+        <p style="font-size:13px;margin-bottom:16px;">Add employees who were hired to manage their attendance and payroll</p>
+        <button class="btn btn-primary" onclick="showAddHRMSEmployeeModal()"><i class="fas fa-user-plus"></i> Add Employee</button>
+      </div>`}`;
+}
+
+async function showAddHRMSEmployeeModal() {
+  createModal('add-hrms-emp', 'Add Employee to HRMS', `
+    <div class="form-group">
+      <label class="form-label">Search Employee *</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="hrms-emp-search" class="form-control" placeholder="Search by name, email, job title..." oninput="searchHRMSEmployees()">
+      </div>
+      <div id="hrms-emp-results" style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;margin-top:8px;display:none;"></div>
+      <input type="hidden" id="hrms-emp-id" value="">
+      <div id="hrms-emp-selected" style="margin-top:8px;padding:8px 12px;background:#f0f9ff;border-radius:8px;border-left:3px solid #2563eb;display:none;font-size:13px;"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label class="form-label">Designation</label><input type="text" id="hrms-desig" class="form-control" placeholder="e.g. Software Engineer"></div>
+      <div class="form-group"><label class="form-label">Department</label><input type="text" id="hrms-dept" class="form-control" placeholder="e.g. Engineering, HR"></div>
+      <div class="form-group"><label class="form-label">Join Date</label><input type="date" id="hrms-jdate" class="form-control"></div>
+      <div class="form-group"><label class="form-label">Basic Monthly Salary (₹)</label><input type="number" id="hrms-sal" class="form-control" placeholder="e.g. 50000"></div>
+      <div class="form-group"><label class="form-label">Employment Type</label>
+        <select id="hrms-etype" class="form-control">
+          <option value="full_time">Full Time</option>
+          <option value="part_time">Part Time</option>
+          <option value="contract">Contract</option>
+          <option value="intern">Intern</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-primary" onclick="saveHRMSEmployee()"><i class="fas fa-save"></i> Save</button>
+      <button class="btn btn-outline" onclick="hideModal('add-hrms-emp')">Cancel</button>
+    </div>
+  `);
+  // Auto-load all employees on modal open
+  searchHRMSEmployees();
+}
+
+let _hrmsEmpSearchTimer = null;
+async function searchHRMSEmployees() {
+  clearTimeout(_hrmsEmpSearchTimer);
+  _hrmsEmpSearchTimer = setTimeout(async () => {
+    const q = document.getElementById('hrms-emp-search')?.value || '';
+    const res = await api('GET', `/company/hrms/employees/search?q=${encodeURIComponent(q)}`);
+    const employees = res.employees || [];
+    const container = document.getElementById('hrms-emp-results');
+    if (!container) return;
+    container.style.display = 'block';
+    container.innerHTML = employees.length ? employees.map(e => `
+      <div onclick="selectHRMSEmployee(${e.id},'${(e.full_name||'').replace(/'/g,'\\'')}','${(e.email||'').replace(/'/g,'\\'')}','${(e.current_job_title||'').replace(/'/g,'\\'')}',${e.already_in_hrms})"
+           style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;transition:background 0.15s;"
+           onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+        <div>
+          <div style="font-weight:600;font-size:14px;">${e.full_name}</div>
+          <div style="font-size:12px;color:#64748b;">${e.email} ${e.current_job_title ? '· '+e.current_job_title : ''}</div>
+        </div>
+        ${e.already_in_hrms ? '<span style="font-size:11px;color:#16a34a;font-weight:600;"><i class="fas fa-check-circle"></i> In HRMS</span>' : ''}
+      </div>`).join('') : '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px;">No employees found</div>';
+  }, 300);
+}
+
+function selectHRMSEmployee(id, name, email, title, alreadyInHrms) {
+  document.getElementById('hrms-emp-id').value = id;
+  document.getElementById('hrms-emp-results').style.display = 'none';
+  const sel = document.getElementById('hrms-emp-selected');
+  sel.style.display = 'block';
+  sel.innerHTML = `<i class="fas fa-user-check" style="color:#16a34a"></i> <b>${name}</b> (${email}) ${title ? '· '+title : ''} ${alreadyInHrms ? '<span style="color:#d97706;font-size:11px;">(updating existing record)</span>' : ''}`;
+  document.getElementById('hrms-emp-search').value = name;
+}
+
+function showEditHRMSEmployee(e) {
+  const empOptions = hrmsEmployees.map(emp => `<option value="${emp.id}" ${emp.id === e.id ? 'selected' : ''}>${emp.full_name} (${emp.email})</option>`).join('');
+  createModal('add-hrms-emp', 'Edit Employee in HRMS', `
+    <div class="form-group"><label class="form-label">Employee</label>
+      <select id="hrms-emp-id" class="form-control">${empOptions}</select>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label class="form-label">Designation</label><input type="text" id="hrms-desig" class="form-control" value="${e.designation||''}"></div>
+      <div class="form-group"><label class="form-label">Department</label><input type="text" id="hrms-dept" class="form-control" value="${e.department||''}"></div>
+      <div class="form-group"><label class="form-label">Join Date</label><input type="date" id="hrms-jdate" class="form-control" value="${e.join_date||''}"></div>
+      <div class="form-group"><label class="form-label">Basic Monthly Salary (₹)</label><input type="number" id="hrms-sal" class="form-control" value="${e.basic_salary||''}"></div>
+      <div class="form-group"><label class="form-label">Employment Type</label>
+        <select id="hrms-etype" class="form-control">
+          <option value="full_time" ${e.employment_type==='full_time'?'selected':''}>Full Time</option>
+          <option value="part_time" ${e.employment_type==='part_time'?'selected':''}>Part Time</option>
+          <option value="contract" ${e.employment_type==='contract'?'selected':''}>Contract</option>
+          <option value="intern" ${e.employment_type==='intern'?'selected':''}>Intern</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-primary" onclick="saveHRMSEmployee()"><i class="fas fa-save"></i> Update</button>
+      <button class="btn btn-outline" onclick="hideModal('add-hrms-emp')">Cancel</button>
+    </div>
+  `);
+}
+
+async function saveHRMSEmployee() {
+  const body = {
+    employee_profile_id: parseInt(document.getElementById('hrms-emp-id').value),
+    designation: document.getElementById('hrms-desig').value,
+    department: document.getElementById('hrms-dept').value,
+    join_date: document.getElementById('hrms-jdate').value,
+    basic_salary: parseFloat(document.getElementById('hrms-sal').value) || null,
+    employment_type: document.getElementById('hrms-etype').value,
+  };
+  if (!body.employee_profile_id) return toast('Please select an employee', 'error');
+  const res = await api('POST', '/company/hrms/employees', body);
+  if (res.success) {
+    toast(res.message, 'success');
+    hideModal('add-hrms-emp');
+    const empRes = await api('GET', '/company/hrms/employees');
+    hrmsEmployees = empRes.employees || [];
+    renderHRMSEmployees();
+  } else toast(res.message, 'error');
+}
+
+// ── ATTENDANCE ──
+async function renderHRMSAttendance() {
+  const el = document.getElementById('hrms-attendance-tab');
+  if (!el) return;
+
+  const res = await api('GET', `/company/hrms/attendance?month=${hrmsAttendanceMonth}&year=${hrmsAttendanceYear}`);
+  const records = res.attendance || [];
+
+  // Group by date
+  const byDate = {};
+  records.forEach(r => {
+    if (!byDate[r.date]) byDate[r.date] = [];
+    byDate[r.date].push(r);
+  });
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-sm btn-outline" onclick="hrmsChangeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+          <span style="font-size:16px;font-weight:700;color:#1e3a5f;">${MONTHS[hrmsAttendanceMonth-1]} ${hrmsAttendanceYear}</span>
+          <button class="btn btn-sm btn-outline" onclick="hrmsChangeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showMarkAttendanceModal()"><i class="fas fa-calendar-plus"></i> Mark Attendance</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;padding:14px;">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;">
+        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:3px;margin-right:4px;"></span>Present</span>
+        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#dc2626;border-radius:3px;margin-right:4px;"></span>Absent</span>
+        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:3px;margin-right:4px;"></span>Half Day</span>
+        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#2563eb;border-radius:3px;margin-right:4px;"></span>WFH</span>
+        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#7c3aed;border-radius:3px;margin-right:4px;"></span>Leave</span>
+      </div>
+    </div>
+
+    ${records.length ? `
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Employee</th><th>Status</th><th>Check In</th><th>Check Out</th><th>Notes</th></tr></thead>
+            <tbody>
+              ${records.map(r => `
+                <tr>
+                  <td style="font-weight:600;">${r.date}</td>
+                  <td>${r.full_name}<br><span style="font-size:11px;color:#64748b;">${r.current_job_title||''}</span></td>
+                  <td>${attendanceBadge(r.status)}</td>
+                  <td style="font-size:13px;">${r.check_in||'-'}</td>
+                  <td style="font-size:13px;">${r.check_out||'-'}</td>
+                  <td style="font-size:12px;color:#64748b;">${r.notes||''}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : `
+      <div class="empty-state">
+        <i class="fas fa-calendar-check"></i>
+        <h3>No attendance records for ${MONTHS[hrmsAttendanceMonth-1]} ${hrmsAttendanceYear}</h3>
+        <button class="btn btn-primary" onclick="showMarkAttendanceModal()"><i class="fas fa-calendar-plus"></i> Mark Attendance</button>
+      </div>`}`;
+}
+
+function attendanceBadge(status) {
+  const cfg = {
+    present: ['#dcfce7','#16a34a','Present'],
+    absent: ['#fee2e2','#dc2626','Absent'],
+    half_day: ['#fef3c7','#d97706','Half Day'],
+    leave: ['#ede9fe','#7c3aed','Leave'],
+    holiday: ['#f1f5f9','#64748b','Holiday'],
+    wfh: ['#dbeafe','#2563eb','WFH'],
+  };
+  const [bg, color, label] = cfg[status] || ['#f1f5f9','#374151', status];
+  return `<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">${label}</span>`;
+}
+
+function hrmsChangeMonth(dir) {
+  hrmsAttendanceMonth += dir;
+  if (hrmsAttendanceMonth > 12) { hrmsAttendanceMonth = 1; hrmsAttendanceYear++; }
+  if (hrmsAttendanceMonth < 1) { hrmsAttendanceMonth = 12; hrmsAttendanceYear--; }
+  renderHRMSAttendance();
+}
+
+function showMarkAttendanceModal() {
+  const today = new Date().toISOString().split('T')[0];
+  const empOptions = hrmsEmployees.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
+  createModal('mark-att-modal', 'Mark Attendance', `
+    <div class="grid-2">
+      <div class="form-group"><label class="form-label">Date *</label><input type="date" id="att-date" class="form-control" value="${today}"></div>
+      <div class="form-group"><label class="form-label">Employee *</label>
+        <select id="att-emp" class="form-control"><option value="">All Employees</option>${empOptions}</select>
+      </div>
+      <div class="form-group"><label class="form-label">Status *</label>
+        <select id="att-status" class="form-control">
+          <option value="present">Present</option>
+          <option value="absent">Absent</option>
+          <option value="half_day">Half Day</option>
+          <option value="wfh">Work From Home</option>
+          <option value="leave">On Leave</option>
+          <option value="holiday">Holiday</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Check In</label><input type="time" id="att-in" class="form-control" value="09:00"></div>
+      <div class="form-group"><label class="form-label">Check Out</label><input type="time" id="att-out" class="form-control" value="18:00"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Notes</label><input type="text" id="att-notes" class="form-control" placeholder="Optional note"></div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-primary" onclick="submitAttendance()"><i class="fas fa-save"></i> Mark Attendance</button>
+      <button class="btn btn-outline" onclick="hideModal('mark-att-modal')">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitAttendance() {
+  const empId = document.getElementById('att-emp').value;
+  const date = document.getElementById('att-date').value;
+  const status = document.getElementById('att-status').value;
+  const check_in = document.getElementById('att-in').value;
+  const check_out = document.getElementById('att-out').value;
+  const notes = document.getElementById('att-notes').value;
+
+  if (!date) return toast('Please select a date', 'error');
+
+  if (!empId) {
+    // Bulk mark for all employees
+    if (!hrmsEmployees.length) return toast('No employees in HRMS', 'error');
+    const records = hrmsEmployees.map(e => ({ employee_profile_id: e.id, status, check_in, check_out }));
+    const res = await api('POST', '/company/hrms/attendance/bulk', { date, records });
+    if (res.success) { toast(res.message, 'success'); hideModal('mark-att-modal'); renderHRMSAttendance(); }
+    else toast(res.message, 'error');
+  } else {
+    const res = await api('POST', '/company/hrms/attendance', { employee_profile_id: parseInt(empId), date, status, check_in, check_out, notes });
+    if (res.success) { toast('Attendance marked!', 'success'); hideModal('mark-att-modal'); renderHRMSAttendance(); }
+    else toast(res.message, 'error');
+  }
+}
+
+// ── SALARY SLIPS ──
+async function renderHRMSSalary() {
+  const el = document.getElementById('hrms-salary-tab');
+  if (!el) return;
+
+  const res = await api('GET', `/company/hrms/salary?month=${hrmsSalaryMonth}&year=${hrmsSalaryYear}`);
+  const slips = res.slips || [];
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-sm btn-outline" onclick="hrmsSalaryChangeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+          <span style="font-size:16px;font-weight:700;color:#1e3a5f;">${MONTHS[hrmsSalaryMonth-1]} ${hrmsSalaryYear}</span>
+          <button class="btn btn-sm btn-outline" onclick="hrmsSalaryChangeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showGenerateSalaryModal()"><i class="fas fa-file-invoice-dollar"></i> Generate Slip</button>
+      </div>
+    </div>
+
+    ${slips.length ? slips.map(s => `
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-weight:700;font-size:15px;">${s.full_name}</div>
+            <div style="font-size:13px;color:#2563eb;">${s.designation||s.current_job_title||''}</div>
+            <div style="font-size:12px;color:#64748b;">${s.department||''} ${s.email ? '· '+s.email : ''}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:20px;font-weight:800;color:#16a34a;">₹${Number(s.net_salary).toLocaleString('en-IN')}</div>
+            <div style="font-size:12px;color:#64748b;">Net Salary</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0;padding:12px;background:#f8fafc;border-radius:10px;">
+          <div style="text-align:center;">
+            <div style="font-size:13px;font-weight:700;color:#374151;">₹${Number(s.gross_salary).toLocaleString('en-IN')}</div>
+            <div style="font-size:11px;color:#64748b;">Gross</div>
+          </div>
+          <div style="text-align:center;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <div style="font-size:13px;font-weight:700;color:#dc2626;">-₹${Number(s.total_deductions).toLocaleString('en-IN')}</div>
+            <div style="font-size:11px;color:#64748b;">Deductions</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:13px;font-weight:700;color:#16a34a;">₹${Number(s.net_salary).toLocaleString('en-IN')}</div>
+            <div style="font-size:11px;color:#64748b;">Net Pay</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#64748b;">${s.present_days}/${s.working_days} days present</div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-sm btn-primary" onclick="downloadSalarySlipPDF(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+            <i class="fas fa-download"></i> Download PDF
+          </button>
+          <button class="btn btn-sm btn-outline" onclick="showGenerateSalaryModal(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+        </div>
+      </div>`).join('') : `
+      <div class="empty-state">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <h3>No salary slips for ${MONTHS[hrmsSalaryMonth-1]} ${hrmsSalaryYear}</h3>
+        <button class="btn btn-primary" onclick="showGenerateSalaryModal()"><i class="fas fa-plus"></i> Generate Salary Slip</button>
+      </div>`}`;
+}
+
+function hrmsSalaryChangeMonth(dir) {
+  hrmsSalaryMonth += dir;
+  if (hrmsSalaryMonth > 12) { hrmsSalaryMonth = 1; hrmsSalaryYear++; }
+  if (hrmsSalaryMonth < 1) { hrmsSalaryMonth = 12; hrmsSalaryYear--; }
+  renderHRMSSalary();
+}
+
+function showGenerateSalaryModal(existing = null) {
+  const empOptions = hrmsEmployees.map(e =>
+    `<option value="${e.id}" ${existing && existing.employee_profile_id === e.id ? 'selected' : ''}>${e.full_name} ${e.basic_salary ? '(₹'+Number(e.basic_salary).toLocaleString('en-IN')+'/mo)' : ''}</option>`
+  ).join('');
+  const e = existing || {};
+  createModal('gen-salary-modal', 'Generate / Edit Salary Slip', `
+    <div class="grid-2">
+      <div class="form-group"><label class="form-label">Employee *</label>
+        <select id="sal-emp" class="form-control" onchange="autoFillSalary(this)">
+          <option value="">-- Select Employee --</option>${empOptions}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Month *</label>
+        <select id="sal-month" class="form-control">
+          ${MONTHS.map((m,i) => `<option value="${i+1}" ${(i+1) === (e.month||hrmsSalaryMonth) ? 'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Year *</label>
+        <input type="number" id="sal-year" class="form-control" value="${e.year||hrmsSalaryYear}" min="2020" max="2099">
+      </div>
+      <div class="form-group"><label class="form-label">Basic Salary (₹) *</label>
+        <input type="number" id="sal-basic" class="form-control" value="${e.basic_salary||''}" placeholder="e.g. 50000">
+      </div>
+      <div class="form-group"><label class="form-label">HRA (₹) <span style="font-size:11px;color:#64748b;">auto: 40%</span></label>
+        <input type="number" id="sal-hra" class="form-control" value="${e.hra||''}" placeholder="auto">
+      </div>
+      <div class="form-group"><label class="form-label">TA (₹) <span style="font-size:11px;color:#64748b;">auto: 10%</span></label>
+        <input type="number" id="sal-ta" class="form-control" value="${e.ta||''}" placeholder="auto">
+      </div>
+      <div class="form-group"><label class="form-label">Other Allowances (₹)</label>
+        <input type="number" id="sal-other-allow" class="form-control" value="${e.other_allowances||0}">
+      </div>
+      <div class="form-group"><label class="form-label">PF Deduction (₹) <span style="font-size:11px;color:#64748b;">auto: 12%</span></label>
+        <input type="number" id="sal-pf" class="form-control" value="${e.pf_deduction||''}" placeholder="auto">
+      </div>
+      <div class="form-group"><label class="form-label">Tax Deduction (₹)</label>
+        <input type="number" id="sal-tax" class="form-control" value="${e.tax_deduction||0}">
+      </div>
+      <div class="form-group"><label class="form-label">Other Deductions (₹)</label>
+        <input type="number" id="sal-other-ded" class="form-control" value="${e.other_deductions||0}">
+      </div>
+      <div class="form-group"><label class="form-label">Working Days</label>
+        <input type="number" id="sal-wdays" class="form-control" value="${e.working_days||26}">
+      </div>
+      <div class="form-group"><label class="form-label">Present Days</label>
+        <input type="number" id="sal-pdays" class="form-control" value="${e.present_days||26}">
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Notes</label>
+      <input type="text" id="sal-notes" class="form-control" value="${e.notes||''}" placeholder="Optional notes">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="submitSalarySlip()"><i class="fas fa-file-invoice-dollar"></i> Generate Slip</button>
+      <button class="btn btn-outline" onclick="hideModal('gen-salary-modal')">Cancel</button>
+    </div>
+  `);
+}
+
+function autoFillSalary(sel) {
+  const emp = hrmsEmployees.find(e => e.id === parseInt(sel.value));
+  if (emp && emp.basic_salary) {
+    document.getElementById('sal-basic').value = emp.basic_salary;
+  }
+}
+
+async function submitSalarySlip() {
+  const body = {
+    employee_profile_id: parseInt(document.getElementById('sal-emp').value),
+    month: parseInt(document.getElementById('sal-month').value),
+    year: parseInt(document.getElementById('sal-year').value),
+    basic_salary: parseFloat(document.getElementById('sal-basic').value),
+    hra: parseFloat(document.getElementById('sal-hra').value) || null,
+    ta: parseFloat(document.getElementById('sal-ta').value) || null,
+    other_allowances: parseFloat(document.getElementById('sal-other-allow').value) || 0,
+    pf_deduction: parseFloat(document.getElementById('sal-pf').value) || null,
+    tax_deduction: parseFloat(document.getElementById('sal-tax').value) || 0,
+    other_deductions: parseFloat(document.getElementById('sal-other-ded').value) || 0,
+    working_days: parseInt(document.getElementById('sal-wdays').value) || 26,
+    present_days: parseInt(document.getElementById('sal-pdays').value) || 26,
+    notes: document.getElementById('sal-notes').value,
+  };
+  if (!body.employee_profile_id || !body.basic_salary) return toast('Employee and basic salary are required', 'error');
+  const res = await api('POST', '/company/hrms/salary', body);
+  if (res.success) {
+    toast(`Salary slip generated! Net: ₹${Number(res.data.netSalary).toLocaleString('en-IN')}`, 'success');
+    hideModal('gen-salary-modal');
+    hrmsSalaryMonth = body.month;
+    hrmsSalaryYear = body.year;
+    renderHRMSSalary();
+  } else toast(res.message, 'error');
+}
+
+function downloadSalarySlipPDF(s) {
+  const companyName = currentUser?.profileData?.company_name || 'Company';
+  const monthName = MONTHS[(s.month||1)-1];
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Salary Slip - ${s.full_name}</title>
+<style>
+  @page { margin: 15mm 20mm; size: A4; }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: white; font-size: 13px; }
+  .header { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; padding: 24px 28px; display:flex; justify-content:space-between; align-items:center; }
+  .company-name { font-size: 22px; font-weight: 800; }
+  .slip-title { font-size: 14px; opacity:0.85; }
+  .slip-period { font-size:16px; font-weight:700; }
+  .body { padding: 24px 28px; }
+  .emp-box { background:#f8fafc; border-radius:10px; padding:16px; margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .emp-row { font-size:13px; } .emp-row span:first-child { color:#64748b; font-size:11px; display:block; font-weight:600; text-transform:uppercase; }
+  .pay-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+  .pay-section h4 { font-size:13px; font-weight:700; color:#1e3a5f; border-bottom:2px solid #2563eb; padding-bottom:6px; margin-bottom:10px; }
+  .pay-row { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid #f1f5f9; }
+  .pay-row.total { font-weight:700; border-top:2px solid #e2e8f0; padding-top:8px; margin-top:4px; }
+  .net-box { background:linear-gradient(135deg,#16a34a,#22c55e); color:white; border-radius:10px; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; }
+  .net-label { font-size:14px; font-weight:600; opacity:0.9; }
+  .net-amount { font-size:28px; font-weight:800; }
+  .footer { margin-top:30px; padding-top:16px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; font-size:12px; color:#64748b; }
+  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+</style></head>
+<body>
+  <div class="header">
+    <div>
+      <div class="company-name"><i>🏢</i> ${companyName}</div>
+      <div class="slip-title">Salary Slip / Pay Stub</div>
+    </div>
+    <div style="text-align:right;">
+      <div class="slip-period">${monthName} ${s.year}</div>
+      <div style="font-size:12px;opacity:0.8;">Generated: ${new Date().toLocaleDateString('en-IN')}</div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="emp-box">
+      <div class="emp-row"><span>Employee Name</span>${s.full_name}</div>
+      <div class="emp-row"><span>Email</span>${s.email||'-'}</div>
+      <div class="emp-row"><span>Designation</span>${s.designation||s.current_job_title||'-'}</div>
+      <div class="emp-row"><span>Department</span>${s.department||'-'}</div>
+      <div class="emp-row"><span>Working Days</span>${s.working_days} days</div>
+      <div class="emp-row"><span>Present Days</span>${s.present_days} days</div>
+      <div class="emp-row"><span>Pay Period</span>${monthName} ${s.year}</div>
+      <div class="emp-row"><span>Loss of Pay</span>₹${Number(s.loss_of_pay||0).toLocaleString('en-IN')}</div>
+    </div>
+
+    <div class="pay-grid">
+      <div class="pay-section">
+        <h4>💰 Earnings</h4>
+        <div class="pay-row"><span>Basic Salary</span><span>₹${Number(s.basic_salary).toLocaleString('en-IN')}</span></div>
+        <div class="pay-row"><span>HRA</span><span>₹${Number(s.hra||0).toLocaleString('en-IN')}</span></div>
+        <div class="pay-row"><span>Travel Allowance</span><span>₹${Number(s.ta||0).toLocaleString('en-IN')}</span></div>
+        <div class="pay-row"><span>Other Allowances</span><span>₹${Number(s.other_allowances||0).toLocaleString('en-IN')}</span></div>
+        <div class="pay-row total"><span>Gross Salary</span><span>₹${Number(s.gross_salary).toLocaleString('en-IN')}</span></div>
+      </div>
+      <div class="pay-section">
+        <h4>📉 Deductions</h4>
+        <div class="pay-row"><span>Provident Fund (PF)</span><span>₹${Number(s.pf_deduction||0).toLocaleString('en-IN')}</span></div>
+        <div class="pay-row"><span>Income Tax (TDS)</span><span>₹${Number(s.tax_deduction||0).toLocaleString('en-IN')}</span></div>
+        <div class="pay-row"><span>Loss of Pay</span><span>₹${Number(s.loss_of_pay||0).toLocaleString('en-IN')}</span></div>
+        <div class="pay-row"><span>Other Deductions</span><span>₹${Number(s.other_deductions||0).toLocaleString('en-IN')}</span></div>
+        <div class="pay-row total"><span>Total Deductions</span><span>₹${Number(s.total_deductions).toLocaleString('en-IN')}</span></div>
+      </div>
+    </div>
+
+    <div class="net-box">
+      <div><div class="net-label">Net Salary (Take Home)</div><div style="font-size:12px;opacity:0.8;">${monthName} ${s.year}</div></div>
+      <div class="net-amount">₹${Number(s.net_salary).toLocaleString('en-IN')}</div>
+    </div>
+
+    ${s.notes ? `<div style="margin-top:16px;padding:10px 14px;background:#f0f9ff;border-radius:8px;border-left:3px solid #2563eb;font-size:13px;color:#374151;"><b>Notes:</b> ${s.notes}</div>` : ''}
+
+    <div class="footer">
+      <div>This is a computer generated salary slip and does not require a signature.</div>
+      <div>${companyName} · ${monthName} ${s.year}</div>
+    </div>
+  </div>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=850,height=1100');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 600);
+  toast('Salary slip ready! Use "Save as PDF" in print dialog.', 'success');
+}
+
+// =============================================
+// EMPLOYER REVIEWS
+// =============================================
 async function loadEmployerReviews() {
   const res = await api('GET', '/reviews/company/given');
   const content = document.getElementById('content-area');
