@@ -1439,16 +1439,25 @@ async function searchHRMSEmployees() {
     const container = document.getElementById('hrms-emp-results');
     if (!container) return;
     container.style.display = 'block';
-    container.innerHTML = employees.length ? employees.map(e => `
-      <div onclick="selectHRMSEmployee(${e.id},'${(e.full_name||'').replace(/'/g,'\\'')}','${(e.email||'').replace(/'/g,'\\'')}','${(e.current_job_title||'').replace(/'/g,'\\'')}',${e.already_in_hrms})"
-           style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;transition:background 0.15s;"
-           onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+    if (!employees.length) {
+      container.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px;">No employees found</div>';
+      return;
+    }
+    container.innerHTML = '';
+    employees.forEach(e => {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:10px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;transition:background 0.15s;';
+      div.innerHTML = `
         <div>
-          <div style="font-weight:600;font-size:14px;">${e.full_name}</div>
-          <div style="font-size:12px;color:#64748b;">${e.email} ${e.current_job_title ? '· '+e.current_job_title : ''}</div>
+          <div style="font-weight:600;font-size:14px;">${e.full_name || ''}</div>
+          <div style="font-size:12px;color:#64748b;">${e.email || ''} ${e.current_job_title ? '· ' + e.current_job_title : ''}</div>
         </div>
-        ${e.already_in_hrms ? '<span style="font-size:11px;color:#16a34a;font-weight:600;"><i class="fas fa-check-circle"></i> In HRMS</span>' : ''}
-      </div>`).join('') : '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px;">No employees found</div>';
+        ${e.already_in_hrms ? '<span style="font-size:11px;color:#16a34a;font-weight:600;"><i class="fas fa-check-circle"></i> In HRMS</span>' : ''}`;
+      div.addEventListener('mouseover', () => div.style.background = '#f8fafc');
+      div.addEventListener('mouseout', () => div.style.background = 'white');
+      div.addEventListener('click', () => selectHRMSEmployee(e.id, e.full_name || '', e.email || '', e.current_job_title || '', e.already_in_hrms));
+      container.appendChild(div);
+    });
   }, 300);
 }
 
