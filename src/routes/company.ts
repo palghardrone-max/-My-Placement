@@ -250,145 +250,198 @@ company.get('/stats', async (c) => {
 })
 
 // =============================================
-// HRMS - ATTENDANCE MANAGEMENT
+// HRMS v2 - STANDALONE (no portal registration needed)
+// Uses hrms_staff, hrms_attendance, hrms_salary tables
 // =============================================
 
-// Get all employees of the company (hired/employed)
+const n = (v: any) => (v === undefined || v === '') ? null : v
+
+// GET /hrms/employees - list all staff for this company
 company.get('/hrms/employees', async (c) => {
   try {
     const user = getAuthUser(c)
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
-
     const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
-    // Get employees who were hired via job applications OR manually added to HRMS
-    const employees = await c.env.DB.prepare(`
-      SELECT DISTINCT ep.id, ep.full_name, ep.phone, ep.current_job_title, ep.city,
-             u.email, he.id as hrms_id, he.designation, he.department,
-             he.join_date, he.basic_salary, he.employment_type, he.is_active as hrms_active
-      FROM employee_profiles ep
-      JOIN users u ON ep.user_id = u.id
-      LEFT JOIN hrms_employees he ON he.employee_profile_id = ep.id AND he.company_id = ?
-      WHERE he.company_id = ? OR ep.id IN (
-        SELECT DISTINCT ja.employee_id FROM job_applications ja
-        JOIN jobs j ON ja.job_id = j.id
-        WHERE j.company_id = ? AND ja.status IN ('hired','offered')
-      )
-      ORDER BY ep.full_name
-    `).bind(comp.id, comp.id, comp.id).all()
+    const staff = await c.env.DB.prepare(`
+      SELECT * FROM hrms_staff WHERE company_id = ? AND is_active = 1 ORDER BY full_name
+    `).bind(comp.id).all()
 
-    return c.json({ success: true, employees: employees.results })
+    return c.json({ success: true, employees: staff.results })
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
   }
 })
 
-// Search all registered employees (for Add to HRMS modal)
+// GET /hrms/employees/search - search portal registered employees to import
 company.get('/hrms/employees/search', async (c) => {
   try {
     const user = getAuthUser(c)
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
-
     const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
     const { q } = c.req.query()
     let query = `
-      SELECT ep.id, ep.full_name, ep.current_job_title, ep.city, u.email,
-             CASE WHEN he.id IS NOT NULL THEN 1 ELSE 0 END as already_in_hrms
+      SELECT ep.id, ep.full_name, ep.current_job_title, ep.city, ep.phone, u.email
       FROM employee_profiles ep
       JOIN users u ON ep.user_id = u.id
-      LEFT JOIN hrms_employees he ON he.employee_profile_id = ep.id AND he.company_id = ?
       WHERE u.is_active = 1
     `
-    const params: any[] = [comp.id]
-
+    const params: any[] = []
     if (q && q.trim()) {
       query += ` AND (ep.full_name LIKE ? OR u.email LIKE ? OR ep.current_job_title LIKE ?)`
-      const likeQ = `%${q.trim()}%`
-      params.push(likeQ, likeQ, likeQ)
+      const lq = `%${q.trim()}%`
+      params.push(lq, lq, lq)
     }
-
     query += ' ORDER BY ep.full_name LIMIT 50'
 
-    const employees = await c.env.DB.prepare(query).bind(...params).all()
+    const employees = params.length
+      ? await c.env.DB.prepare(query).bind(...params).all()
+      : await c.env.DB.prepare(query).all()
+
     return c.json({ success: true, employees: employees.results })
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
   }
 })
 
-// Add employee to HRMS
+// POST /hrms/employees - add single employee (manual or portal-linked)
 company.post('/hrms/employees', async (c) => {
   try {
     const user = getAuthUser(c)
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
-
     const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
     const body = await c.req.json()
-    const { employee_profile_id, designation, department, join_date, basic_salary, employment_type } = body
+    const { full_name, email, phone, designation, department, join_date, basic_salary, employment_type, employee_code, notes } = body
 
-    const n = (v: any) => v === undefined ? null : v
+    if (!full_name || !full_name.trim())
+      return c.json({ success: false, message: 'Employee name is required' }, 400)
 
-    // Check if already added
-    const existing = await c.env.DB.prepare(
-      'SELECT id FROM hrms_employees WHERE company_id = ? AND employee_profile_id = ?'
-    ).bind(comp.id, employee_profile_id).first()
+    await c.env.DB.prepare(`
+      INSERT INTO hrms_staff (company_id, full_name, email, phone, designation, department, join_date, basic_salary, employment_type, employee_code, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(comp.id, full_name.trim(), n(email), n(phone), n(designation), n(department),
+            n(join_date), Number(basic_salary) || 0, employment_type || 'full_time', n(employee_code), n(notes)).run()
 
-    if (existing) {
-      // Update
-      await c.env.DB.prepare(`
-        UPDATE hrms_employees SET designation=?, department=?, join_date=?, basic_salary=?, employment_type=?, updated_at=CURRENT_TIMESTAMP
-        WHERE company_id=? AND employee_profile_id=?
-      `).bind(n(designation), n(department), n(join_date), n(basic_salary), n(employment_type), comp.id, employee_profile_id).run()
-    } else {
-      await c.env.DB.prepare(`
-        INSERT INTO hrms_employees (company_id, employee_profile_id, designation, department, join_date, basic_salary, employment_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).bind(comp.id, employee_profile_id, n(designation), n(department), n(join_date), n(basic_salary), n(employment_type)).run()
-    }
-
-    return c.json({ success: true, message: 'Employee added to HRMS' })
+    return c.json({ success: true, message: `${full_name} added to HRMS` })
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
   }
 })
 
-// Mark attendance
+// POST /hrms/employees/bulk - add multiple employees at once (CSV/array)
+company.post('/hrms/employees/bulk', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const { employees } = await c.req.json()
+    if (!employees?.length) return c.json({ success: false, message: 'No employees provided' }, 400)
+
+    let added = 0, skipped = 0
+    for (const emp of employees) {
+      if (!emp.full_name?.trim()) { skipped++; continue }
+      try {
+        await c.env.DB.prepare(`
+          INSERT INTO hrms_staff (company_id, full_name, email, phone, designation, department, join_date, basic_salary, employment_type, employee_code)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(comp.id, emp.full_name.trim(), n(emp.email), n(emp.phone), n(emp.designation),
+                n(emp.department), n(emp.join_date), Number(emp.basic_salary) || 0,
+                emp.employment_type || 'full_time', n(emp.employee_code)).run()
+        added++
+      } catch { skipped++ }
+    }
+
+    return c.json({ success: true, message: `${added} employees added${skipped ? ', ' + skipped + ' skipped' : ''}`, added, skipped })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// PUT /hrms/employees/:id - update staff record
+company.put('/hrms/employees/:id', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const staffId = c.req.param('id')
+    const body = await c.req.json()
+    const { full_name, email, phone, designation, department, join_date, basic_salary, employment_type, employee_code, notes, is_active } = body
+
+    await c.env.DB.prepare(`
+      UPDATE hrms_staff SET
+        full_name = COALESCE(?, full_name),
+        email = COALESCE(?, email),
+        phone = COALESCE(?, phone),
+        designation = COALESCE(?, designation),
+        department = COALESCE(?, department),
+        join_date = COALESCE(?, join_date),
+        basic_salary = COALESCE(?, basic_salary),
+        employment_type = COALESCE(?, employment_type),
+        employee_code = COALESCE(?, employee_code),
+        notes = COALESCE(?, notes),
+        is_active = COALESCE(?, is_active),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND company_id = ?
+    `).bind(n(full_name), n(email), n(phone), n(designation), n(department), n(join_date),
+            basic_salary !== undefined ? Number(basic_salary) : null,
+            n(employment_type), n(employee_code), n(notes),
+            is_active !== undefined ? (is_active ? 1 : 0) : null,
+            staffId, comp.id).run()
+
+    return c.json({ success: true, message: 'Employee updated' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// DELETE /hrms/employees/:id - soft delete (deactivate)
+company.delete('/hrms/employees/:id', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+    const staffId = c.req.param('id')
+    await c.env.DB.prepare('UPDATE hrms_staff SET is_active=0, updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?').bind(staffId, comp.id).run()
+    return c.json({ success: true, message: 'Employee removed from HRMS' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// POST /hrms/attendance - mark single attendance
 company.post('/hrms/attendance', async (c) => {
   try {
     const user = getAuthUser(c)
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
-
     const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
     const body = await c.req.json()
-    const { employee_profile_id, date, status, check_in, check_out, notes } = body
+    const { staff_id, date, status, check_in, check_out, notes } = body
 
-    if (!employee_profile_id || !date || !status)
-      return c.json({ success: false, message: 'Employee, date and status are required' }, 400)
+    if (!staff_id || !date || !status)
+      return c.json({ success: false, message: 'Staff, date and status are required' }, 400)
 
-    const n = (v: any) => v === undefined ? null : v
-
-    // Check if attendance already marked for this day
     const existing = await c.env.DB.prepare(
-      'SELECT id FROM attendance WHERE company_id = ? AND employee_profile_id = ? AND date = ?'
-    ).bind(comp.id, employee_profile_id, date).first() as any
+      'SELECT id FROM hrms_attendance WHERE company_id=? AND staff_id=? AND date=?'
+    ).bind(comp.id, staff_id, date).first() as any
 
     if (existing) {
-      await c.env.DB.prepare(`
-        UPDATE attendance SET status=?, check_in=?, check_out=?, notes=?, updated_at=CURRENT_TIMESTAMP
-        WHERE id=?
-      `).bind(status, n(check_in), n(check_out), n(notes), existing.id).run()
+      await c.env.DB.prepare(`UPDATE hrms_attendance SET status=?,check_in=?,check_out=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+        .bind(status, n(check_in), n(check_out), n(notes), existing.id).run()
     } else {
-      await c.env.DB.prepare(`
-        INSERT INTO attendance (company_id, employee_profile_id, date, status, check_in, check_out, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).bind(comp.id, employee_profile_id, date, status, n(check_in), n(check_out), n(notes)).run()
+      await c.env.DB.prepare(`INSERT INTO hrms_attendance (company_id,staff_id,date,status,check_in,check_out,notes) VALUES (?,?,?,?,?,?,?)`)
+        .bind(comp.id, staff_id, date, status, n(check_in), n(check_out), n(notes)).run()
     }
 
     return c.json({ success: true, message: 'Attendance marked' })
@@ -397,29 +450,27 @@ company.post('/hrms/attendance', async (c) => {
   }
 })
 
-// Get attendance for a month
+// GET /hrms/attendance - get attendance for a month
 company.get('/hrms/attendance', async (c) => {
   try {
     const user = getAuthUser(c)
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
-
     const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
-    const { month, year, employee_id } = c.req.query()
+    const { month, year, staff_id } = c.req.query()
     const m = month || new Date().getMonth() + 1
     const y = year || new Date().getFullYear()
 
     let query = `
-      SELECT a.*, ep.full_name, ep.current_job_title
-      FROM attendance a
-      JOIN employee_profiles ep ON a.employee_profile_id = ep.id
-      WHERE a.company_id = ? AND strftime('%m', a.date) = ? AND strftime('%Y', a.date) = ?
+      SELECT a.*, s.full_name, s.designation, s.department, s.employee_code
+      FROM hrms_attendance a
+      JOIN hrms_staff s ON a.staff_id = s.id
+      WHERE a.company_id=? AND strftime('%m',a.date)=? AND strftime('%Y',a.date)=?
     `
-    const params: any[] = [comp.id, String(m).padStart(2, '0'), String(y)]
-
-    if (employee_id) { query += ' AND a.employee_profile_id = ?'; params.push(employee_id) }
-    query += ' ORDER BY a.date DESC, ep.full_name'
+    const params: any[] = [comp.id, String(m).padStart(2,'0'), String(y)]
+    if (staff_id) { query += ' AND a.staff_id=?'; params.push(staff_id) }
+    query += ' ORDER BY a.date DESC, s.full_name'
 
     const records = await c.env.DB.prepare(query).bind(...params).all()
     return c.json({ success: true, attendance: records.results })
@@ -428,32 +479,29 @@ company.get('/hrms/attendance', async (c) => {
   }
 })
 
-// Bulk attendance (mark all employees for a day)
+// POST /hrms/attendance/bulk - mark all staff for a day
 company.post('/hrms/attendance/bulk', async (c) => {
   try {
     const user = getAuthUser(c)
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
-
     const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
-    const { date, records } = await c.req.json() // records: [{employee_profile_id, status, check_in, check_out}]
+    const { date, records } = await c.req.json()
     if (!date || !records?.length) return c.json({ success: false, message: 'Date and records required' }, 400)
 
     for (const rec of records) {
       const existing = await c.env.DB.prepare(
-        'SELECT id FROM attendance WHERE company_id=? AND employee_profile_id=? AND date=?'
-      ).bind(comp.id, rec.employee_profile_id, date).first() as any
-
+        'SELECT id FROM hrms_attendance WHERE company_id=? AND staff_id=? AND date=?'
+      ).bind(comp.id, rec.staff_id, date).first() as any
       if (existing) {
-        await c.env.DB.prepare('UPDATE attendance SET status=?,check_in=?,check_out=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
+        await c.env.DB.prepare('UPDATE hrms_attendance SET status=?,check_in=?,check_out=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
           .bind(rec.status, rec.check_in || null, rec.check_out || null, existing.id).run()
       } else {
-        await c.env.DB.prepare('INSERT INTO attendance (company_id,employee_profile_id,date,status,check_in,check_out) VALUES (?,?,?,?,?,?)')
-          .bind(comp.id, rec.employee_profile_id, date, rec.status, rec.check_in || null, rec.check_out || null).run()
+        await c.env.DB.prepare('INSERT INTO hrms_attendance (company_id,staff_id,date,status,check_in,check_out) VALUES (?,?,?,?,?,?)')
+          .bind(comp.id, rec.staff_id, date, rec.status, rec.check_in || null, rec.check_out || null).run()
       }
     }
-
     return c.json({ success: true, message: `Attendance marked for ${records.length} employees` })
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
@@ -469,7 +517,6 @@ company.get('/hrms/salary', async (c) => {
   try {
     const user = getAuthUser(c)
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
-
     const comp = await c.env.DB.prepare('SELECT id, company_name FROM companies WHERE user_id = ?').bind(user.userId).first() as any
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
@@ -478,14 +525,11 @@ company.get('/hrms/salary', async (c) => {
     const y = year || new Date().getFullYear()
 
     const slips = await c.env.DB.prepare(`
-      SELECT ss.*, ep.full_name, ep.current_job_title, ep.phone, u.email,
-             he.designation, he.department
-      FROM salary_slips ss
-      JOIN employee_profiles ep ON ss.employee_profile_id = ep.id
-      JOIN users u ON ep.user_id = u.id
-      LEFT JOIN hrms_employees he ON he.company_id = ss.company_id AND he.employee_profile_id = ss.employee_profile_id
-      WHERE ss.company_id = ? AND ss.month = ? AND ss.year = ?
-      ORDER BY ep.full_name
+      SELECT ss.*, s.full_name, s.designation, s.department, s.email, s.phone, s.employee_code
+      FROM hrms_salary ss
+      JOIN hrms_staff s ON ss.staff_id = s.id
+      WHERE ss.company_id=? AND ss.month=? AND ss.year=?
+      ORDER BY s.full_name
     `).bind(comp.id, Number(m), Number(y)).all()
 
     return c.json({ success: true, slips: slips.results, company: comp })
@@ -494,22 +538,38 @@ company.get('/hrms/salary', async (c) => {
   }
 })
 
-// Generate salary slip
+// DELETE /hrms/salary/:id - delete salary slip
+company.delete('/hrms/salary/:id', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+    const slipId = c.req.param('id')
+    await c.env.DB.prepare('DELETE FROM hrms_salary WHERE id=? AND company_id=?').bind(slipId, comp.id).run()
+    return c.json({ success: true, message: 'Salary slip deleted' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// Generate / update salary slip
 company.post('/hrms/salary', async (c) => {
   try {
     const user = getAuthUser(c)
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
-
     const comp = await c.env.DB.prepare('SELECT id, company_name FROM companies WHERE user_id = ?').bind(user.userId).first() as any
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
     const body = await c.req.json()
-    const { employee_profile_id, month, year, basic_salary, hra, ta, other_allowances, pf_deduction, tax_deduction, other_deductions, working_days, present_days, notes } = body
+    const { staff_id, month, year, basic_salary, hra, ta, other_allowances, pf_deduction, tax_deduction, other_deductions, working_days, present_days, notes } = body
 
-    if (!employee_profile_id || !month || !year || !basic_salary)
+    if (!staff_id || !month || !year || !basic_salary)
       return c.json({ success: false, message: 'Employee, month, year and basic salary are required' }, 400)
 
-    const n = (v: any) => v === undefined ? null : (v === '' ? 0 : v)
+    // Verify staff belongs to this company
+    const staffCheck = await c.env.DB.prepare('SELECT id FROM hrms_staff WHERE id=? AND company_id=? AND is_active=1').bind(staff_id, comp.id).first()
+    if (!staffCheck) return c.json({ success: false, message: 'Employee not found in HRMS' }, 404)
 
     const basicSal = Number(basic_salary) || 0
     const hraAmt = Number(hra) || Math.round(basicSal * 0.4)
@@ -528,23 +588,23 @@ company.post('/hrms/salary', async (c) => {
     const lossOfPay = pDays < wDays ? Math.round((wDays - pDays) * perDaySalary) : 0
     const netSalary = Math.round(grossSalary - totalDeductions - lossOfPay)
 
-    // Check if slip already exists
+    // Check if slip already exists in hrms_salary
     const existing = await c.env.DB.prepare(
-      'SELECT id FROM salary_slips WHERE company_id=? AND employee_profile_id=? AND month=? AND year=?'
-    ).bind(comp.id, employee_profile_id, Number(month), Number(year)).first() as any
+      'SELECT id FROM hrms_salary WHERE company_id=? AND staff_id=? AND month=? AND year=?'
+    ).bind(comp.id, Number(staff_id), Number(month), Number(year)).first() as any
 
     if (existing) {
       await c.env.DB.prepare(`
-        UPDATE salary_slips SET basic_salary=?,hra=?,ta=?,other_allowances=?,gross_salary=?,
+        UPDATE hrms_salary SET basic_salary=?,hra=?,ta=?,other_allowances=?,gross_salary=?,
         pf_deduction=?,tax_deduction=?,other_deductions=?,total_deductions=?,
         loss_of_pay=?,net_salary=?,working_days=?,present_days=?,notes=?,updated_at=CURRENT_TIMESTAMP
         WHERE id=?
       `).bind(basicSal, hraAmt, taAmt, otherAllow, grossSalary, pfDed, taxDed, otherDed, totalDeductions, lossOfPay, netSalary, wDays, pDays, n(notes), existing.id).run()
     } else {
       await c.env.DB.prepare(`
-        INSERT INTO salary_slips (company_id,employee_profile_id,month,year,basic_salary,hra,ta,other_allowances,gross_salary,pf_deduction,tax_deduction,other_deductions,total_deductions,loss_of_pay,net_salary,working_days,present_days,notes)
+        INSERT INTO hrms_salary (company_id,staff_id,month,year,basic_salary,hra,ta,other_allowances,gross_salary,pf_deduction,tax_deduction,other_deductions,total_deductions,loss_of_pay,net_salary,working_days,present_days,notes)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `).bind(comp.id, employee_profile_id, Number(month), Number(year), basicSal, hraAmt, taAmt, otherAllow, grossSalary, pfDed, taxDed, otherDed, totalDeductions, lossOfPay, netSalary, wDays, pDays, n(notes)).run()
+      `).bind(comp.id, Number(staff_id), Number(month), Number(year), basicSal, hraAmt, taAmt, otherAllow, grossSalary, pfDed, taxDed, otherDed, totalDeductions, lossOfPay, netSalary, wDays, pDays, n(notes)).run()
     }
 
     return c.json({ success: true, message: 'Salary slip generated', data: { grossSalary, totalDeductions, netSalary } })

@@ -1365,7 +1365,10 @@ function renderHRMSEmployees() {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
       <h3 style="margin:0;font-size:16px;font-weight:700;color:#1e3a5f;">Team Members (${hrmsEmployees.length})</h3>
-      <button class="btn btn-primary btn-sm" onclick="showAddHRMSEmployeeModal()"><i class="fas fa-user-plus"></i> Add to HRMS</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="showAddHRMSEmployeeModal()"><i class="fas fa-user-plus"></i> Add Employee</button>
+        <button class="btn btn-outline btn-sm" onclick="showBulkImportModal()"><i class="fas fa-file-upload"></i> Bulk Import</button>
+      </div>
     </div>
     ${hrmsEmployees.length ? hrmsEmployees.map(e => `
       <div class="card" style="margin-bottom:12px;padding:16px;">
@@ -1390,28 +1393,57 @@ function renderHRMSEmployees() {
       <div class="empty-state">
         <i class="fas fa-users"></i>
         <h3>No employees in HRMS yet</h3>
-        <p style="font-size:13px;margin-bottom:16px;">Add employees who were hired to manage their attendance and payroll</p>
-        <button class="btn btn-primary" onclick="showAddHRMSEmployeeModal()"><i class="fas fa-user-plus"></i> Add Employee</button>
+        <p style="font-size:13px;margin-bottom:16px;">Add employees directly — no portal registration needed!</p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="showAddHRMSEmployeeModal()"><i class="fas fa-user-plus"></i> Add Employee</button>
+          <button class="btn btn-outline" onclick="showBulkImportModal()"><i class="fas fa-file-upload"></i> Bulk Import (CSV)</button>
+        </div>
       </div>`}`;
 }
 
-async function showAddHRMSEmployeeModal() {
+// ── ADD EMPLOYEE MODAL (Manual entry - no portal dependency) ──
+function showAddHRMSEmployeeModal() {
+  const today = new Date().toISOString().split('T')[0];
   createModal('add-hrms-emp', 'Add Employee to HRMS', `
-    <div class="form-group">
-      <label class="form-label">Search Employee *</label>
-      <div style="display:flex;gap:8px;">
-        <input type="text" id="hrms-emp-search" class="form-control" placeholder="Search by name, email, job title..." oninput="searchHRMSEmployees()">
-      </div>
-      <div id="hrms-emp-results" style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;margin-top:8px;display:none;"></div>
-      <input type="hidden" id="hrms-emp-id" value="">
-      <div id="hrms-emp-selected" style="margin-top:8px;padding:8px 12px;background:#f0f9ff;border-radius:8px;border-left:3px solid #2563eb;display:none;font-size:13px;"></div>
+    <div style="background:#f0f9ff;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#1e40af;border-left:3px solid #2563eb;">
+      <i class="fas fa-info-circle"></i> Enter employee details directly — no portal registration required.
+      <a href="#" onclick="showBulkImportModal();return false;" style="color:#2563eb;font-weight:600;margin-left:8px;"><i class="fas fa-file-upload"></i> Bulk Import</a>
     </div>
     <div class="grid-2">
-      <div class="form-group"><label class="form-label">Designation</label><input type="text" id="hrms-desig" class="form-control" placeholder="e.g. Software Engineer"></div>
-      <div class="form-group"><label class="form-label">Department</label><input type="text" id="hrms-dept" class="form-control" placeholder="e.g. Engineering, HR"></div>
-      <div class="form-group"><label class="form-label">Join Date</label><input type="date" id="hrms-jdate" class="form-control"></div>
-      <div class="form-group"><label class="form-label">Basic Monthly Salary (₹)</label><input type="number" id="hrms-sal" class="form-control" placeholder="e.g. 50000"></div>
-      <div class="form-group"><label class="form-label">Employment Type</label>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Full Name *</label>
+        <input type="text" id="hrms-name" class="form-control" placeholder="e.g. Rahul Sharma" autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="hrms-email" class="form-control" placeholder="employee@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="tel" id="hrms-phone" class="form-control" placeholder="+91 98765 43210">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Employee Code</label>
+        <input type="text" id="hrms-code" class="form-control" placeholder="e.g. EMP001">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Designation</label>
+        <input type="text" id="hrms-desig" class="form-control" placeholder="e.g. Software Engineer">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Department</label>
+        <input type="text" id="hrms-dept" class="form-control" placeholder="e.g. Engineering, HR">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Join Date</label>
+        <input type="date" id="hrms-jdate" class="form-control" value="${today}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Basic Monthly Salary (₹)</label>
+        <input type="number" id="hrms-sal" class="form-control" placeholder="e.g. 50000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Employment Type</label>
         <select id="hrms-etype" class="form-control">
           <option value="full_time">Full Time</option>
           <option value="part_time">Part Time</option>
@@ -1420,69 +1452,184 @@ async function showAddHRMSEmployeeModal() {
         </select>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:8px;">
-      <button class="btn btn-primary" onclick="saveHRMSEmployee()"><i class="fas fa-save"></i> Save</button>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <input type="text" id="hrms-notes" class="form-control" placeholder="Optional">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="saveHRMSEmployee()"><i class="fas fa-save"></i> Add Employee</button>
       <button class="btn btn-outline" onclick="hideModal('add-hrms-emp')">Cancel</button>
     </div>
   `);
-  // Auto-load all employees on modal open
-  searchHRMSEmployees();
 }
 
-let _hrmsEmpSearchTimer = null;
-async function searchHRMSEmployees() {
-  clearTimeout(_hrmsEmpSearchTimer);
-  _hrmsEmpSearchTimer = setTimeout(async () => {
-    const q = document.getElementById('hrms-emp-search')?.value || '';
-    const res = await api('GET', `/company/hrms/employees/search?q=${encodeURIComponent(q)}`);
-    const employees = res.employees || [];
-    const container = document.getElementById('hrms-emp-results');
-    if (!container) return;
-    container.style.display = 'block';
-    if (!employees.length) {
-      container.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px;">No employees found</div>';
-      return;
-    }
-    container.innerHTML = '';
-    employees.forEach(e => {
-      const div = document.createElement('div');
-      div.style.cssText = 'padding:10px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;transition:background 0.15s;';
-      div.innerHTML = `
-        <div>
-          <div style="font-weight:600;font-size:14px;">${e.full_name || ''}</div>
-          <div style="font-size:12px;color:#64748b;">${e.email || ''} ${e.current_job_title ? '· ' + e.current_job_title : ''}</div>
+// ── BULK IMPORT MODAL ──
+function showBulkImportModal() {
+  hideModal('add-hrms-emp');
+  createModal('bulk-import-modal', 'Bulk Import Employees', `
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-sm ${true?'btn-primary':'btn-outline'}" id="bulk-tab-csv" onclick="switchBulkTab('csv')">CSV Import</button>
+        <button class="btn btn-sm btn-outline" id="bulk-tab-form" onclick="switchBulkTab('form')">Multi-Row Form</button>
+      </div>
+
+      <div id="bulk-csv-section">
+        <div style="background:#f8fafc;border:2px dashed #e2e8f0;border-radius:10px;padding:16px;margin-bottom:12px;">
+          <p style="font-size:13px;color:#64748b;margin-bottom:8px;"><b>CSV Format</b> (first row = header, comma separated):</p>
+          <code style="font-size:11px;color:#374151;display:block;background:#f1f5f9;padding:8px;border-radius:6px;">full_name,email,phone,designation,department,join_date,basic_salary,employment_type,employee_code<br>Rahul Sharma,rahul@ex.com,9876543210,Engineer,Tech,2024-01-15,50000,full_time,EMP001<br>Priya Patel,priya@ex.com,,HR Manager,HR,2024-02-01,45000,full_time,EMP002</code>
         </div>
-        ${e.already_in_hrms ? '<span style="font-size:11px;color:#16a34a;font-weight:600;"><i class="fas fa-check-circle"></i> In HRMS</span>' : ''}`;
-      div.addEventListener('mouseover', () => div.style.background = '#f8fafc');
-      div.addEventListener('mouseout', () => div.style.background = 'white');
-      div.addEventListener('click', () => selectHRMSEmployee(e.id, e.full_name || '', e.email || '', e.current_job_title || '', e.already_in_hrms));
-      container.appendChild(div);
-    });
-  }, 300);
-}
+        <div class="form-group">
+          <label class="form-label">Upload CSV File</label>
+          <input type="file" id="bulk-csv-file" class="form-control" accept=".csv,.txt" onchange="parseBulkCSV()">
+        </div>
+        <div id="bulk-csv-preview" style="max-height:200px;overflow-y:auto;"></div>
+      </div>
 
-function selectHRMSEmployee(id, name, email, title, alreadyInHrms) {
-  document.getElementById('hrms-emp-id').value = id;
-  document.getElementById('hrms-emp-results').style.display = 'none';
-  const sel = document.getElementById('hrms-emp-selected');
-  sel.style.display = 'block';
-  sel.innerHTML = `<i class="fas fa-user-check" style="color:#16a34a"></i> <b>${name}</b> (${email}) ${title ? '· '+title : ''} ${alreadyInHrms ? '<span style="color:#d97706;font-size:11px;">(updating existing record)</span>' : ''}`;
-  document.getElementById('hrms-emp-search').value = name;
-}
-
-function showEditHRMSEmployee(e) {
-  const empOptions = hrmsEmployees.map(emp => `<option value="${emp.id}" ${emp.id === e.id ? 'selected' : ''}>${emp.full_name} (${emp.email})</option>`).join('');
-  createModal('add-hrms-emp', 'Edit Employee in HRMS', `
-    <div class="form-group"><label class="form-label">Employee</label>
-      <select id="hrms-emp-id" class="form-control">${empOptions}</select>
+      <div id="bulk-form-section" style="display:none;">
+        <div id="bulk-rows-container">
+          <div class="bulk-row" style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
+            <input type="text" class="form-control" placeholder="Full Name *" style="font-size:12px;" data-field="full_name">
+            <input type="email" class="form-control" placeholder="Email" style="font-size:12px;" data-field="email">
+            <input type="text" class="form-control" placeholder="Designation" style="font-size:12px;" data-field="designation">
+            <input type="text" class="form-control" placeholder="Dept" style="font-size:12px;" data-field="department">
+            <input type="number" class="form-control" placeholder="Salary" style="font-size:12px;" data-field="basic_salary">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline" onclick="addBulkRow()" style="margin-top:4px;"><i class="fas fa-plus"></i> Add Row</button>
+        <p style="font-size:12px;color:#64748b;margin-top:6px;">Each row = 1 employee. Fill Name at minimum.</p>
+      </div>
     </div>
+
+    <div id="bulk-status" style="display:none;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="submitBulkImport()"><i class="fas fa-upload"></i> Import All</button>
+      <button class="btn btn-outline" onclick="hideModal('bulk-import-modal')">Cancel</button>
+    </div>
+  `);
+}
+
+let _bulkCSVData = [];
+function switchBulkTab(tab) {
+  document.getElementById('bulk-csv-section').style.display = tab === 'csv' ? '' : 'none';
+  document.getElementById('bulk-form-section').style.display = tab === 'form' ? '' : 'none';
+  document.getElementById('bulk-tab-csv').className = 'btn btn-sm ' + (tab === 'csv' ? 'btn-primary' : 'btn-outline');
+  document.getElementById('bulk-tab-form').className = 'btn btn-sm ' + (tab === 'form' ? 'btn-primary' : 'btn-outline');
+}
+
+function addBulkRow() {
+  const row = document.createElement('div');
+  row.className = 'bulk-row';
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;';
+  row.innerHTML = `
+    <input type="text" class="form-control" placeholder="Full Name *" style="font-size:12px;" data-field="full_name">
+    <input type="email" class="form-control" placeholder="Email" style="font-size:12px;" data-field="email">
+    <input type="text" class="form-control" placeholder="Designation" style="font-size:12px;" data-field="designation">
+    <input type="text" class="form-control" placeholder="Dept" style="font-size:12px;" data-field="department">
+    <input type="number" class="form-control" placeholder="Salary" style="font-size:12px;" data-field="basic_salary">`;
+  document.getElementById('bulk-rows-container').appendChild(row);
+}
+
+function parseBulkCSV() {
+  const file = document.getElementById('bulk-csv-file').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) { toast('CSV must have header + at least 1 data row', 'error'); return; }
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/ /g,'_'));
+    _bulkCSVData = lines.slice(1).map(line => {
+      const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g,''));
+      const row = {};
+      headers.forEach((h,i) => { if (vals[i]) row[h] = vals[i]; });
+      return row;
+    }).filter(r => r.full_name);
+    const preview = document.getElementById('bulk-csv-preview');
+    if (!_bulkCSVData.length) { preview.innerHTML = '<p style="color:#dc2626;font-size:13px;">No valid rows found. Check CSV format.</p>'; return; }
+    preview.innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-top:8px;">
+        <div style="font-weight:700;color:#16a34a;font-size:13px;"><i class="fas fa-check-circle"></i> ${_bulkCSVData.length} employees ready to import</div>
+        <div style="margin-top:6px;font-size:12px;color:#374151;">${_bulkCSVData.slice(0,5).map(r => r.full_name + (r.email?' ('+r.email+')':'')).join(', ')}${_bulkCSVData.length > 5 ? '...' : ''}</div>
+      </div>`;
+  };
+  reader.readAsText(file);
+}
+
+async function submitBulkImport() {
+  const csvVisible = document.getElementById('bulk-csv-section').style.display !== 'none';
+  let employees = [];
+  if (csvVisible) {
+    if (!_bulkCSVData.length) return toast('Please upload a CSV file first', 'error');
+    employees = _bulkCSVData;
+  } else {
+    const rows = document.querySelectorAll('.bulk-row');
+    rows.forEach(row => {
+      const emp = {};
+      row.querySelectorAll('[data-field]').forEach(inp => { if (inp.value.trim()) emp[inp.dataset.field] = inp.value.trim(); });
+      if (emp.full_name) employees.push(emp);
+    });
+    if (!employees.length) return toast('Add at least one employee with a name', 'error');
+  }
+
+  const statusEl = document.getElementById('bulk-status');
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<div style="color:#2563eb;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Importing '+employees.length+' employees...</div>';
+
+  const res = await api('POST', '/company/hrms/employees/bulk', { employees });
+  if (res.success) {
+    statusEl.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;color:#16a34a;font-weight:600;font-size:13px;"><i class="fas fa-check-circle"></i> ${res.message}</div>`;
+    toast(res.message, 'success');
+    setTimeout(async () => {
+      hideModal('bulk-import-modal');
+      const empRes = await api('GET', '/company/hrms/employees');
+      hrmsEmployees = empRes.employees || [];
+      renderHRMSEmployees();
+    }, 1500);
+  } else {
+    statusEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;color:#dc2626;font-size:13px;">${res.message}</div>`;
+    toast(res.message, 'error');
+  }
+}
+
+// ── EDIT EMPLOYEE ──
+function showEditHRMSEmployee(e) {
+  createModal('edit-hrms-emp', 'Edit Employee — ' + e.full_name, `
     <div class="grid-2">
-      <div class="form-group"><label class="form-label">Designation</label><input type="text" id="hrms-desig" class="form-control" value="${e.designation||''}"></div>
-      <div class="form-group"><label class="form-label">Department</label><input type="text" id="hrms-dept" class="form-control" value="${e.department||''}"></div>
-      <div class="form-group"><label class="form-label">Join Date</label><input type="date" id="hrms-jdate" class="form-control" value="${e.join_date||''}"></div>
-      <div class="form-group"><label class="form-label">Basic Monthly Salary (₹)</label><input type="number" id="hrms-sal" class="form-control" value="${e.basic_salary||''}"></div>
-      <div class="form-group"><label class="form-label">Employment Type</label>
-        <select id="hrms-etype" class="form-control">
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Full Name *</label>
+        <input type="text" id="edit-hrms-name" class="form-control" value="${e.full_name||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="edit-hrms-email" class="form-control" value="${e.email||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="tel" id="edit-hrms-phone" class="form-control" value="${e.phone||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Employee Code</label>
+        <input type="text" id="edit-hrms-code" class="form-control" value="${e.employee_code||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Designation</label>
+        <input type="text" id="edit-hrms-desig" class="form-control" value="${e.designation||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Department</label>
+        <input type="text" id="edit-hrms-dept" class="form-control" value="${e.department||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Join Date</label>
+        <input type="date" id="edit-hrms-jdate" class="form-control" value="${e.join_date||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Basic Salary (₹)</label>
+        <input type="number" id="edit-hrms-sal" class="form-control" value="${e.basic_salary||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Employment Type</label>
+        <select id="edit-hrms-etype" class="form-control">
           <option value="full_time" ${e.employment_type==='full_time'?'selected':''}>Full Time</option>
           <option value="part_time" ${e.employment_type==='part_time'?'selected':''}>Part Time</option>
           <option value="contract" ${e.employment_type==='contract'?'selected':''}>Contract</option>
@@ -1490,23 +1637,64 @@ function showEditHRMSEmployee(e) {
         </select>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:8px;">
-      <button class="btn btn-primary" onclick="saveHRMSEmployee()"><i class="fas fa-save"></i> Update</button>
-      <button class="btn btn-outline" onclick="hideModal('add-hrms-emp')">Cancel</button>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="updateHRMSEmployee(${e.id})"><i class="fas fa-save"></i> Update</button>
+      <button class="btn btn-danger btn-outline" onclick="removeHRMSEmployee(${e.id}, '${e.full_name.replace(/'/g, '')}')"><i class="fas fa-trash"></i> Remove</button>
+      <button class="btn btn-outline" onclick="hideModal('edit-hrms-emp')">Cancel</button>
     </div>
   `);
 }
 
-async function saveHRMSEmployee() {
+async function updateHRMSEmployee(staffId) {
   const body = {
-    employee_profile_id: parseInt(document.getElementById('hrms-emp-id').value),
-    designation: document.getElementById('hrms-desig').value,
-    department: document.getElementById('hrms-dept').value,
-    join_date: document.getElementById('hrms-jdate').value,
-    basic_salary: parseFloat(document.getElementById('hrms-sal').value) || null,
-    employment_type: document.getElementById('hrms-etype').value,
+    full_name: document.getElementById('edit-hrms-name').value.trim(),
+    email: document.getElementById('edit-hrms-email').value.trim(),
+    phone: document.getElementById('edit-hrms-phone').value.trim(),
+    employee_code: document.getElementById('edit-hrms-code').value.trim(),
+    designation: document.getElementById('edit-hrms-desig').value.trim(),
+    department: document.getElementById('edit-hrms-dept').value.trim(),
+    join_date: document.getElementById('edit-hrms-jdate').value,
+    basic_salary: parseFloat(document.getElementById('edit-hrms-sal').value) || 0,
+    employment_type: document.getElementById('edit-hrms-etype').value,
   };
-  if (!body.employee_profile_id) return toast('Please select an employee', 'error');
+  if (!body.full_name) return toast('Name is required', 'error');
+  const res = await api('PUT', `/company/hrms/employees/${staffId}`, body);
+  if (res.success) {
+    toast('Employee updated!', 'success');
+    hideModal('edit-hrms-emp');
+    const empRes = await api('GET', '/company/hrms/employees');
+    hrmsEmployees = empRes.employees || [];
+    renderHRMSEmployees();
+  } else toast(res.message, 'error');
+}
+
+async function removeHRMSEmployee(staffId, name) {
+  if (!confirm(`Remove "${name}" from HRMS? Their attendance and salary history will be preserved.`)) return;
+  const res = await api('DELETE', `/company/hrms/employees/${staffId}`);
+  if (res.success) {
+    toast('Employee removed from HRMS', 'success');
+    hideModal('edit-hrms-emp');
+    const empRes = await api('GET', '/company/hrms/employees');
+    hrmsEmployees = empRes.employees || [];
+    renderHRMSEmployees();
+  } else toast(res.message, 'error');
+}
+
+async function saveHRMSEmployee() {
+  const name = document.getElementById('hrms-name')?.value?.trim();
+  if (!name) return toast('Employee name is required', 'error');
+  const body = {
+    full_name: name,
+    email: document.getElementById('hrms-email')?.value?.trim() || null,
+    phone: document.getElementById('hrms-phone')?.value?.trim() || null,
+    employee_code: document.getElementById('hrms-code')?.value?.trim() || null,
+    designation: document.getElementById('hrms-desig')?.value?.trim() || null,
+    department: document.getElementById('hrms-dept')?.value?.trim() || null,
+    join_date: document.getElementById('hrms-jdate')?.value || null,
+    basic_salary: parseFloat(document.getElementById('hrms-sal')?.value) || 0,
+    employment_type: document.getElementById('hrms-etype')?.value || 'full_time',
+    notes: document.getElementById('hrms-notes')?.value?.trim() || null,
+  };
   const res = await api('POST', '/company/hrms/employees', body);
   if (res.success) {
     toast(res.message, 'success');
@@ -1643,12 +1831,12 @@ async function submitAttendance() {
   if (!empId) {
     // Bulk mark for all employees
     if (!hrmsEmployees.length) return toast('No employees in HRMS', 'error');
-    const records = hrmsEmployees.map(e => ({ employee_profile_id: e.id, status, check_in, check_out }));
+    const records = hrmsEmployees.map(e => ({ staff_id: e.id, status, check_in, check_out }));
     const res = await api('POST', '/company/hrms/attendance/bulk', { date, records });
     if (res.success) { toast(res.message, 'success'); hideModal('mark-att-modal'); renderHRMSAttendance(); }
     else toast(res.message, 'error');
   } else {
-    const res = await api('POST', '/company/hrms/attendance', { employee_profile_id: parseInt(empId), date, status, check_in, check_out, notes });
+    const res = await api('POST', '/company/hrms/attendance', { staff_id: parseInt(empId), date, status, check_in, check_out, notes });
     if (res.success) { toast('Attendance marked!', 'success'); hideModal('mark-att-modal'); renderHRMSAttendance(); }
     else toast(res.message, 'error');
   }
@@ -1727,7 +1915,7 @@ function hrmsSalaryChangeMonth(dir) {
 
 function showGenerateSalaryModal(existing = null) {
   const empOptions = hrmsEmployees.map(e =>
-    `<option value="${e.id}" ${existing && existing.employee_profile_id === e.id ? 'selected' : ''}>${e.full_name} ${e.basic_salary ? '(₹'+Number(e.basic_salary).toLocaleString('en-IN')+'/mo)' : ''}</option>`
+    `<option value="${e.id}" ${existing && existing.staff_id === e.id ? 'selected' : ''}>${e.full_name} ${e.basic_salary ? '(₹'+Number(e.basic_salary).toLocaleString('en-IN')+'/mo)' : ''}</option>`
   ).join('');
   const e = existing || {};
   createModal('gen-salary-modal', 'Generate / Edit Salary Slip', `
@@ -1792,7 +1980,7 @@ function autoFillSalary(sel) {
 
 async function submitSalarySlip() {
   const body = {
-    employee_profile_id: parseInt(document.getElementById('sal-emp').value),
+    staff_id: parseInt(document.getElementById('sal-emp').value),
     month: parseInt(document.getElementById('sal-month').value),
     year: parseInt(document.getElementById('sal-year').value),
     basic_salary: parseFloat(document.getElementById('sal-basic').value),
@@ -1806,7 +1994,7 @@ async function submitSalarySlip() {
     present_days: parseInt(document.getElementById('sal-pdays').value) || 26,
     notes: document.getElementById('sal-notes').value,
   };
-  if (!body.employee_profile_id || !body.basic_salary) return toast('Employee and basic salary are required', 'error');
+  if (!body.staff_id || !body.basic_salary) return toast('Employee and basic salary are required', 'error');
   const res = await api('POST', '/company/hrms/salary', body);
   if (res.success) {
     toast(`Salary slip generated! Net: ₹${Number(res.data.netSalary).toLocaleString('en-IN')}`, 'success');
