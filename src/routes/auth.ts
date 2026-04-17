@@ -19,6 +19,16 @@ function generateToken(userId: number, role: string, email: string): string {
   return btoa(JSON.stringify(payload))
 }
 
+// Simple random token for password reset (no crypto dependency)
+function generateResetToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let token = ''
+  for (let i = 0; i < 32; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return token
+}
+
 export function verifyToken(token: string): { userId: number; role: string; email: string } | null {
   try {
     const payload = JSON.parse(atob(token))
@@ -166,6 +176,82 @@ auth.get('/me', async (c) => {
     }
 
     return c.json({ success: true, user: { ...user, profileId, profileData } })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── FORGOT PASSWORD (generate reset token) ──
+auth.post('/forgot-password', async (c) => {
+  try {
+    const { email } = await c.req.json()
+    if (!email) return c.json({ success: false, message: 'Email is required' }, 400)
+
+    const user = await c.env.DB.prepare('SELECT id, email, role FROM users WHERE email = ? AND is_active = 1').bind(email).first() as any
+    // Always return success to avoid email enumeration
+    if (!user) return c.json({ success: true, message: 'If this email exists, a reset token has been generated.' })
+
+    // Generate token valid for 1 hour
+    const token = generateResetToken()
+    const expiresAt = new Date(Date.now() + 3600000).toISOString()
+
+    // Invalidate old tokens for this user
+    await c.env.DB.prepare('UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0').bind(user.id).run()
+
+    await c.env.DB.prepare(
+      'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)'
+    ).bind(user.id, token, expiresAt).run()
+
+    // In production, send by email. For demo, return token directly.
+    return c.json({ success: true, message: 'Password reset token generated', token, email: user.email })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── RESET PASSWORD (use token) ──
+auth.post('/reset-password', async (c) => {
+  try {
+    const { token, new_password } = await c.req.json()
+    if (!token || !new_password) return c.json({ success: false, message: 'Token and new password are required' }, 400)
+    if (new_password.length < 6) return c.json({ success: false, message: 'Password must be at least 6 characters' }, 400)
+
+    const resetRecord = await c.env.DB.prepare(
+      "SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0 AND expires_at > datetime('now')"
+    ).bind(token).first() as any
+
+    if (!resetRecord) return c.json({ success: false, message: 'Invalid or expired reset token' }, 400)
+
+    const newHash = simpleHash(new_password)
+    await c.env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(newHash, resetRecord.user_id).run()
+    await c.env.DB.prepare('UPDATE password_reset_tokens SET used = 1 WHERE id = ?').bind(resetRecord.id).run()
+
+    return c.json({ success: true, message: 'Password reset successfully! Please login with your new password.' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── CHANGE PASSWORD (logged-in user) ──
+auth.post('/change-password', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization')
+    if (!authHeader) return c.json({ success: false, message: 'Auth required' }, 401)
+    const payload = verifyToken(authHeader.replace('Bearer ', ''))
+    if (!payload) return c.json({ success: false, message: 'Invalid token' }, 401)
+
+    const { current_password, new_password } = await c.req.json()
+    if (!current_password || !new_password) return c.json({ success: false, message: 'Current and new password required' }, 400)
+    if (new_password.length < 6) return c.json({ success: false, message: 'New password must be at least 6 characters' }, 400)
+
+    const user = await c.env.DB.prepare('SELECT id, password_hash FROM users WHERE id = ?').bind(payload.userId).first() as any
+    if (!user) return c.json({ success: false, message: 'User not found' }, 404)
+
+    if (simpleHash(current_password) !== user.password_hash)
+      return c.json({ success: false, message: 'Current password is incorrect' }, 400)
+
+    await c.env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(simpleHash(new_password), user.id).run()
+    return c.json({ success: true, message: 'Password changed successfully!' })
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
   }

@@ -132,4 +132,63 @@ reviews.put('/:id/flag', async (c) => {
   }
 })
 
+// ── EMPLOYEE: Get own reviews ──
+reviews.get('/my', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employee') return c.json({ success: false, message: 'Employee access required' }, 403)
+
+    const ep = await c.env.DB.prepare('SELECT id FROM employee_profiles WHERE user_id = ?').bind(user.userId).first() as any
+    if (!ep) return c.json({ success: false, message: 'Profile not found' }, 404)
+
+    const reviewsList = await c.env.DB.prepare(`
+      SELECT er.*, c.company_name, c.logo_url,
+        (SELECT id FROM review_removal_requests WHERE review_id = er.id AND employee_profile_id = ? ORDER BY created_at DESC LIMIT 1) as removal_request_id,
+        (SELECT status FROM review_removal_requests WHERE review_id = er.id AND employee_profile_id = ? ORDER BY created_at DESC LIMIT 1) as removal_status
+      FROM employee_reviews er
+      JOIN companies c ON er.company_id = c.id
+      WHERE er.employee_id = ?
+      ORDER BY er.created_at DESC
+    `).bind(ep.id, ep.id, ep.id).all()
+
+    return c.json({ success: true, reviews: reviewsList.results })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── EMPLOYEE: Request review removal ──
+reviews.post('/:id/request-removal', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employee') return c.json({ success: false, message: 'Employee access required' }, 403)
+
+    const ep = await c.env.DB.prepare('SELECT id FROM employee_profiles WHERE user_id = ?').bind(user.userId).first() as any
+    if (!ep) return c.json({ success: false, message: 'Profile not found' }, 404)
+
+    const reviewId = c.req.param('id')
+    const { reason, payment_ref } = await c.req.json()
+    if (!reason?.trim()) return c.json({ success: false, message: 'Reason is required' }, 400)
+
+    // Check review belongs to this employee
+    const review = await c.env.DB.prepare('SELECT id FROM employee_reviews WHERE id = ? AND employee_id = ?').bind(reviewId, ep.id).first()
+    if (!review) return c.json({ success: false, message: 'Review not found' }, 404)
+
+    // Check for existing pending request
+    const existing = await c.env.DB.prepare(
+      "SELECT id FROM review_removal_requests WHERE review_id = ? AND employee_profile_id = ? AND status = 'pending'"
+    ).bind(reviewId, ep.id).first()
+    if (existing) return c.json({ success: false, message: 'You already have a pending removal request for this review' }, 400)
+
+    await c.env.DB.prepare(`
+      INSERT INTO review_removal_requests (review_id, employee_profile_id, reason, payment_ref)
+      VALUES (?, ?, ?, ?)
+    `).bind(reviewId, ep.id, reason.trim(), payment_ref?.trim() || null).run()
+
+    return c.json({ success: true, message: 'Removal request submitted! Admin will review it shortly.' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
 export default reviews

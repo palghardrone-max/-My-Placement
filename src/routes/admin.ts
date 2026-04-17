@@ -1,6 +1,16 @@
 import { Hono } from 'hono'
 import { verifyToken } from './auth'
 
+function simpleHash(password: string): string {
+  let hash = 0
+  for (let i = 0; i < password.length; i++) {
+    const char = password.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return Math.abs(hash).toString(36) + '_' + password.length
+}
+
 type Bindings = { DB: D1Database }
 const admin = new Hono<{ Bindings: Bindings }>()
 
@@ -304,6 +314,126 @@ admin.delete('/companies/:id', async (c) => {
     await c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(comp.user_id).run()
 
     return c.json({ success: true, message: 'Company deleted successfully' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── CHANGE COMPANY PASSWORD (admin resets employer password) ──
+admin.put('/companies/:id/password', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const compId = c.req.param('id')
+    const { new_password } = await c.req.json()
+    if (!new_password || new_password.length < 6)
+      return c.json({ success: false, message: 'Password must be at least 6 characters' }, 400)
+
+    const comp = await c.env.DB.prepare('SELECT user_id FROM companies WHERE id = ?').bind(compId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    await c.env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+      .bind(simpleHash(new_password), comp.user_id).run()
+
+    return c.json({ success: true, message: 'Company password changed successfully' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── ADMIN: Get employees with search + pagination ──
+admin.get('/employees/search', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const { q, city, flag, page = '1' } = c.req.query()
+    const pageNum = parseInt(page)
+    const offset = (pageNum - 1) * 50
+
+    let query = `
+      SELECT ep.id, ep.full_name, ep.current_job_title, ep.city, ep.state, ep.total_experience_years,
+             u.email, u.is_active, u.created_at,
+             (SELECT COUNT(*) FROM job_applications WHERE employee_id = ep.id) as total_applications,
+             (SELECT ROUND(AVG(rating),1) FROM employee_reviews WHERE employee_id = ep.id) as avg_rating,
+             (SELECT COUNT(*) FROM employee_reviews WHERE employee_id = ep.id AND is_flagged = 1) as flag_count
+      FROM employee_profiles ep JOIN users u ON ep.user_id = u.id
+      WHERE 1=1`
+    const params: any[] = []
+
+    if (q?.trim()) {
+      query += ' AND (ep.full_name LIKE ? OR u.email LIKE ? OR ep.current_job_title LIKE ?)'
+      const lq = `%${q.trim()}%`
+      params.push(lq, lq, lq)
+    }
+    if (city?.trim()) { query += ' AND ep.city LIKE ?'; params.push(`%${city.trim()}%`) }
+    if (flag === 'true') { query += ' AND (SELECT COUNT(*) FROM employee_reviews WHERE employee_id = ep.id AND is_flagged = 1) > 0' }
+
+    query += ' ORDER BY ep.full_name LIMIT 50 OFFSET ?'
+    params.push(offset)
+
+    const employees = params.length
+      ? await c.env.DB.prepare(query).bind(...params).all()
+      : await c.env.DB.prepare(query).all()
+
+    return c.json({ success: true, employees: employees.results })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── REVIEW REMOVAL REQUESTS: list ──
+admin.get('/review-removal-requests', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const { status } = c.req.query()
+    let query = `
+      SELECT rrr.*, ep.full_name as employee_name, u.email as employee_email,
+             er.review_text, er.rating, c.company_name
+      FROM review_removal_requests rrr
+      JOIN employee_profiles ep ON rrr.employee_profile_id = ep.id
+      JOIN users u ON ep.user_id = u.id
+      JOIN employee_reviews er ON rrr.review_id = er.id
+      JOIN companies c ON er.company_id = c.id
+      WHERE 1=1`
+    if (status) query += ` AND rrr.status = '${status}'`
+    query += ' ORDER BY rrr.created_at DESC'
+
+    const requests = await c.env.DB.prepare(query).all()
+    return c.json({ success: true, requests: requests.results })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── REVIEW REMOVAL REQUESTS: approve / reject ──
+admin.put('/review-removal-requests/:id', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const reqId = c.req.param('id')
+    const { status, admin_notes, amount_charged, delete_review } = await c.req.json()
+
+    if (!['approved', 'rejected'].includes(status))
+      return c.json({ success: false, message: 'Status must be approved or rejected' }, 400)
+
+    const req = await c.env.DB.prepare('SELECT * FROM review_removal_requests WHERE id = ?').bind(reqId).first() as any
+    if (!req) return c.json({ success: false, message: 'Request not found' }, 404)
+
+    await c.env.DB.prepare(`
+      UPDATE review_removal_requests SET status=?, admin_notes=?, amount_charged=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
+    `).bind(status, admin_notes || null, amount_charged || req.amount_charged, reqId).run()
+
+    // If approved and delete_review=true, delete the review
+    if (status === 'approved' && delete_review) {
+      await c.env.DB.prepare('DELETE FROM employee_reviews WHERE id = ?').bind(req.review_id).run()
+    }
+
+    return c.json({ success: true, message: `Request ${status}${status === 'approved' && delete_review ? ' and review deleted' : ''}` })
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
   }

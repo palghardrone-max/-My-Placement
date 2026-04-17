@@ -265,7 +265,7 @@ company.get('/hrms/employees', async (c) => {
     if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
 
     const staff = await c.env.DB.prepare(`
-      SELECT * FROM hrms_staff WHERE company_id = ? AND is_active = 1 ORDER BY full_name
+      SELECT * FROM hrms_staff WHERE company_id = ? ORDER BY is_active DESC, full_name
     `).bind(comp.id).all()
 
     return c.json({ success: true, employees: staff.results })
@@ -398,6 +398,29 @@ company.put('/hrms/employees/:id', async (c) => {
             staffId, comp.id).run()
 
     return c.json({ success: true, message: 'Employee updated' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// PUT /hrms/employees/:id/toggle - enable/disable employee (discontinue)
+company.put('/hrms/employees/:id/toggle', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const staffId = c.req.param('id')
+    const staff = await c.env.DB.prepare('SELECT id, full_name, is_active FROM hrms_staff WHERE id = ? AND company_id = ?').bind(staffId, comp.id).first() as any
+    if (!staff) return c.json({ success: false, message: 'Employee not found' }, 404)
+
+    const newStatus = staff.is_active ? 0 : 1
+    await c.env.DB.prepare('UPDATE hrms_staff SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND company_id = ?')
+      .bind(newStatus, staffId, comp.id).run()
+
+    const action = newStatus ? 'reactivated' : 'discontinued'
+    return c.json({ success: true, message: `${staff.full_name} ${action} successfully`, is_active: newStatus })
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
   }

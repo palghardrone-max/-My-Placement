@@ -157,11 +157,52 @@ function renderLogin(role = null) {
           <button class="btn btn-primary btn-block" onclick="doLogin()" id="login-btn">
             <i class="fas fa-sign-in-alt"></i> Login
           </button>
-          <div style="margin-top:16px;padding:12px;background:#f0f9ff;border-radius:10px;font-size:12px;color:#0369a1;">
+          <div style="text-align:center;margin-top:12px;">
+            <a href="#" onclick="showForgotPassword();return false;" style="font-size:13px;color:#2563eb;text-decoration:none;"><i class="fas fa-key"></i> Forgot Password?</a>
+          </div>
+          <div style="margin-top:12px;padding:12px;background:#f0f9ff;border-radius:10px;font-size:12px;color:#0369a1;">
             <b>Demo Credentials:</b><br>
             Admin: admin@myplacement.com / admin123<br>
             Employer: hr@techcorp.com / company123<br>
             Employee: rahul@example.com / employee123
+          </div>
+        </div>
+
+        <div id="forgot-password-form" style="display:none;">
+          <div style="text-align:center;margin-bottom:16px;">
+            <div style="font-size:36px;margin-bottom:8px;">🔑</div>
+            <h3 style="font-size:16px;font-weight:700;color:#1e3a5f;margin:0;">Reset Password</h3>
+            <p style="font-size:13px;color:#64748b;margin-top:4px;">Enter your email to get a reset token</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="forgot-email" class="form-control" placeholder="your@email.com">
+          </div>
+          <button class="btn btn-primary btn-block" onclick="doForgotPassword()">
+            <i class="fas fa-paper-plane"></i> Get Reset Token
+          </button>
+          <div id="forgot-token-section" style="display:none;margin-top:14px;">
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+              <div style="font-size:12px;color:#16a34a;font-weight:600;"><i class="fas fa-check-circle"></i> Token generated!</div>
+              <div style="font-size:12px;color:#374151;margin-top:4px;">Your reset token: <code id="forgot-token-display" style="font-weight:700;background:#dcfce7;padding:2px 6px;border-radius:4px;"></code></div>
+              <div style="font-size:11px;color:#64748b;margin-top:4px;">Valid for 1 hour. Enter it below to set new password.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Reset Token</label>
+              <input type="text" id="reset-token" class="form-control" placeholder="Paste token here">
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input type="password" id="reset-new-password" class="form-control" placeholder="Min 6 characters">
+            </div>
+            <button class="btn btn-primary btn-block" onclick="doResetPassword()">
+              <i class="fas fa-lock"></i> Reset Password
+            </button>
+          </div>
+          <div style="text-align:center;margin-top:12px;">
+            <a href="#" onclick="switchAuthTab('login');document.getElementById('forgot-password-form').style.display='none';document.getElementById('login-form').style.display='block';return false;" style="font-size:13px;color:#2563eb;text-decoration:none;">
+              <i class="fas fa-arrow-left"></i> Back to Login
+            </a>
           </div>
         </div>
 
@@ -198,11 +239,50 @@ function renderLogin(role = null) {
 function switchAuthTab(tab) {
   const isLogin = tab === 'login';
   document.getElementById('login-form').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('forgot-password-form').style.display = 'none';
   document.getElementById('register-form').style.display = isLogin ? 'none' : 'block';
   document.getElementById('tab-login').style.background = isLogin ? '#2563eb' : 'transparent';
   document.getElementById('tab-login').style.color = isLogin ? 'white' : '#64748b';
   document.getElementById('tab-register').style.background = !isLogin ? '#2563eb' : 'transparent';
   document.getElementById('tab-register').style.color = !isLogin ? 'white' : '#64748b';
+}
+
+function showForgotPassword() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('forgot-password-form').style.display = 'block';
+  document.getElementById('forgot-token-section').style.display = 'none';
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) return toast('Please enter your email', 'error');
+  const res = await api('POST', '/auth/forgot-password', { email }, false);
+  if (res.success) {
+    if (res.token) {
+      document.getElementById('forgot-token-section').style.display = 'block';
+      document.getElementById('forgot-token-display').textContent = res.token;
+      document.getElementById('reset-token').value = res.token;
+      toast('Token generated! Set your new password below.', 'success');
+    } else {
+      toast(res.message, 'info');
+    }
+  } else toast(res.message, 'error');
+}
+
+async function doResetPassword() {
+  const token = document.getElementById('reset-token').value.trim();
+  const newPass = document.getElementById('reset-new-password').value;
+  if (!token || !newPass) return toast('Token and new password are required', 'error');
+  if (newPass.length < 6) return toast('Password must be at least 6 characters', 'error');
+  const res = await api('POST', '/auth/reset-password', { token, new_password: newPass }, false);
+  if (res.success) {
+    toast(res.message, 'success');
+    setTimeout(() => {
+      document.getElementById('forgot-password-form').style.display = 'none';
+      document.getElementById('login-form').style.display = 'block';
+    }, 1500);
+  } else toast(res.message, 'error');
 }
 
 function setRegRole(role) {
@@ -282,6 +362,39 @@ function doLogout() {
   toast('Logged out successfully', 'info');
 }
 
+function showChangePasswordModal() {
+  createModal('change-my-pass', '🔑 Change My Password', `
+    <div class="form-group">
+      <label class="form-label">Current Password *</label>
+      <input type="password" id="cur-pass" class="form-control" placeholder="Enter current password" autofocus>
+    </div>
+    <div class="form-group">
+      <label class="form-label">New Password *</label>
+      <input type="password" id="my-new-pass" class="form-control" placeholder="Min 6 characters">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirm New Password *</label>
+      <input type="password" id="my-confirm-pass" class="form-control" placeholder="Repeat new password">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-primary" onclick="doChangeMyPassword()"><i class="fas fa-save"></i> Update Password</button>
+      <button class="btn btn-outline" onclick="hideModal('change-my-pass')">Cancel</button>
+    </div>
+  `);
+}
+
+async function doChangeMyPassword() {
+  const cur = document.getElementById('cur-pass').value;
+  const np = document.getElementById('my-new-pass').value;
+  const cp = document.getElementById('my-confirm-pass').value;
+  if (!cur || !np) return toast('Please fill all fields', 'error');
+  if (np.length < 6) return toast('New password must be at least 6 characters', 'error');
+  if (np !== cp) return toast('New passwords do not match', 'error');
+  const res = await api('POST', '/auth/change-password', { current_password: cur, new_password: np });
+  if (res.success) { toast(res.message, 'success'); hideModal('change-my-pass'); }
+  else toast(res.message, 'error');
+}
+
 function routeByRole(role) {
   if (role === 'super_admin') renderAdminDashboard();
   else if (role === 'employer') renderEmployerDashboard();
@@ -300,6 +413,7 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
       { id: 'employees', icon: 'fa-users', label: 'Employees' },
       { id: 'jobs', icon: 'fa-briefcase', label: 'All Jobs' },
       { id: 'reviews', icon: 'fa-star', label: 'Reviews' },
+      { id: 'review-requests', icon: 'fa-trash-alt', label: 'Removal Requests' },
       { id: 'users', icon: 'fa-user-cog', label: 'Users' },
     ],
     employer: [
@@ -316,6 +430,7 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
       { id: 'find-jobs', icon: 'fa-search', label: 'Find Jobs' },
       { id: 'my-applications', icon: 'fa-file-alt', label: 'My Applications' },
       { id: 'saved-jobs', icon: 'fa-bookmark', label: 'Saved Jobs' },
+      { id: 'my-reviews', icon: 'fa-star', label: 'My Reviews' },
       { id: 'my-profile', icon: 'fa-user', label: 'My Profile' },
     ]
   };
@@ -354,6 +469,9 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
             <div class="sidebar-user-name">${userName}</div>
             <div class="sidebar-user-role">${roleLabels[role]}</div>
           </div>
+          <button class="logout-btn" onclick="showChangePasswordModal()" title="Change Password" style="margin-right:2px;background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:6px;">
+            <i class="fas fa-key"></i>
+          </button>
           <button class="logout-btn" onclick="doLogout()" title="Logout">
             <i class="fas fa-sign-out-alt"></i>
           </button>
@@ -444,6 +562,7 @@ async function loadAdminSection(section) {
   else if (section === 'employees') await loadAdminEmployees();
   else if (section === 'jobs') await loadAdminJobs();
   else if (section === 'reviews') await loadAdminReviews();
+  else if (section === 'review-requests') await loadAdminReviewRequests();
   else if (section === 'users') await loadAdminUsers();
 }
 
@@ -546,6 +665,9 @@ async function loadAdminCompanies() {
                     <button class="btn btn-sm ${c.is_active?'btn-warning':'btn-success'}" onclick="adminToggleCompany(${c.id})">
                       <i class="fas fa-${c.is_active?'ban':'check-circle'}"></i> ${c.is_active?'Disable':'Enable'}
                     </button>
+                    <button class="btn btn-sm btn-outline" onclick="adminChangeCompanyPassword(${c.id},'${(c.company_name||'').replace(/'/g,'')}')">
+                      <i class="fas fa-key"></i> Password
+                    </button>
                     <button class="btn btn-sm btn-danger" onclick="adminDeleteCompany(${c.id},'${c.company_name}')">
                       <i class="fas fa-trash"></i> Delete
                     </button>
@@ -628,34 +750,124 @@ async function confirmDeleteCompany(id) {
   else toast(res.message, 'error');
 }
 
-async function loadAdminEmployees() {
-  const res = await api('GET', '/admin/employees');
+// ── Admin: Change Company Password ──
+function adminChangeCompanyPassword(id, name) {
+  createModal('change-comp-pass', `🔑 Change Password — ${name}`, `
+    <p style="font-size:13px;color:#64748b;margin-bottom:16px;">Set a new login password for this company account.</p>
+    <div class="form-group">
+      <label class="form-label">New Password *</label>
+      <input type="password" id="new-comp-pass" class="form-control" placeholder="Min 6 characters" autofocus>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirm Password *</label>
+      <input type="password" id="confirm-comp-pass" class="form-control" placeholder="Repeat password">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-primary" onclick="confirmChangeCompanyPassword(${id})"><i class="fas fa-save"></i> Update Password</button>
+      <button class="btn btn-outline" onclick="hideModal('change-comp-pass')">Cancel</button>
+    </div>
+  `);
+}
+
+async function confirmChangeCompanyPassword(id) {
+  const np = document.getElementById('new-comp-pass').value;
+  const cp = document.getElementById('confirm-comp-pass').value;
+  if (!np || np.length < 6) return toast('Password must be at least 6 characters', 'error');
+  if (np !== cp) return toast('Passwords do not match', 'error');
+  const res = await api('PUT', `/admin/companies/${id}/password`, { new_password: np });
+  if (res.success) { toast(res.message, 'success'); hideModal('change-comp-pass'); }
+  else toast(res.message, 'error');
+}
+
+let _adminEmpData = [];
+
+async function loadAdminEmployees(q = '', city = '', flag = '') {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (city) params.set('city', city);
+  if (flag) params.set('flag', flag);
+  const res = await api('GET', `/admin/employees/search?${params.toString()}`);
+  _adminEmpData = res.employees || [];
   const content = document.getElementById('content-area');
   content.innerHTML = `
-    <div class="card">
-      <div class="card-title"><i class="fas fa-users"></i> All Employees (${(res.employees||[]).length})</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0;"><i class="fas fa-users"></i> Employees (${_adminEmpData.length})</h2>
+      <button class="btn btn-outline btn-sm" onclick="downloadEmployeesCSV()"><i class="fas fa-download"></i> Download CSV</button>
+    </div>
+    <div class="card" style="margin-bottom:16px;padding:14px;">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:end;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Search (name / email / job title)</label>
+          <input type="text" id="emp-search-q" class="form-control" placeholder="Type to search..." value="${q}" oninput="debounceAdminEmpSearch()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">City</label>
+          <input type="text" id="emp-search-city" class="form-control" placeholder="e.g. Mumbai" value="${city}" oninput="debounceAdminEmpSearch()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Filter</label>
+          <select id="emp-search-flag" class="form-control" onchange="debounceAdminEmpSearch()">
+            <option value="" ${!flag?'selected':''}>All Employees</option>
+            <option value="true" ${flag==='true'?'selected':''}>Flagged Only</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
       <div class="table-responsive">
         <table class="data-table">
-          <thead><tr><th>Employee</th><th>Location</th><th>Experience</th><th>Applications</th><th>Rating</th><th>Flags</th><th>Status</th></tr></thead>
+          <thead><tr><th>Employee</th><th>Location</th><th>Exp</th><th>Applications</th><th>Rating</th><th>Flags</th><th>Status</th></tr></thead>
           <tbody>
-            ${(res.employees||[]).map(e => `
+            ${_adminEmpData.map(e => `
               <tr>
                 <td>
                   <div style="font-weight:600;">${e.full_name}</div>
                   <div style="font-size:12px;color:#64748b;">${e.email}</div>
                   <div style="font-size:12px;color:#94a3b8;">${e.current_job_title||'-'}</div>
                 </td>
-                <td>${e.city||'-'}</td>
+                <td>${[e.city,e.state].filter(Boolean).join(', ')||'-'}</td>
                 <td>${e.total_experience_years||0} yrs</td>
                 <td>${e.total_applications||0}</td>
-                <td>${e.avg_rating ? `${parseFloat(e.avg_rating).toFixed(1)} ⭐` : '-'}</td>
-                <td>${e.flag_count > 0 ? `<span class="badge badge-danger">${e.flag_count} flags</span>` : '<span class="badge badge-success">Clean</span>'}</td>
+                <td>${e.avg_rating ? parseFloat(e.avg_rating).toFixed(1)+' ⭐' : '-'}</td>
+                <td>${e.flag_count > 0 ? '<span class="badge badge-danger">'+e.flag_count+' flags</span>' : '<span class="badge badge-success">Clean</span>'}</td>
                 <td>${e.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
-              </tr>`).join('') || '<tr><td colspan="7">No employees found</td></tr>'}
+              </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8;">No employees found</td></tr>'}
           </tbody>
         </table>
       </div>
     </div>`;
+}
+
+let _adminEmpTimer = null;
+function debounceAdminEmpSearch() {
+  clearTimeout(_adminEmpTimer);
+  _adminEmpTimer = setTimeout(() => {
+    const q = document.getElementById('emp-search-q')?.value || '';
+    const city = document.getElementById('emp-search-city')?.value || '';
+    const flag = document.getElementById('emp-search-flag')?.value || '';
+    loadAdminEmployees(q, city, flag);
+  }, 400);
+}
+
+function downloadEmployeesCSV() {
+  if (!_adminEmpData.length) return toast('No data to download', 'error');
+  const headers = ['Name','Email','Job Title','City','State','Experience (yrs)','Applications','Avg Rating','Flag Count','Status','Joined'];
+  const rows = _adminEmpData.map(e => [
+    e.full_name, e.email, e.current_job_title||'',
+    e.city||'', e.state||'', e.total_experience_years||0,
+    e.total_applications||0,
+    e.avg_rating ? parseFloat(e.avg_rating).toFixed(1) : '',
+    e.flag_count||0,
+    e.is_active ? 'Active' : 'Inactive',
+    e.created_at ? new Date(e.created_at).toLocaleDateString('en-IN') : ''
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `employees_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('CSV downloaded!', 'success');
 }
 
 async function loadAdminJobs() {
@@ -715,6 +927,109 @@ function showAdminReviewTab(tab, btn) {
   btn.classList.add('active');
   document.getElementById('review-tab-flagged').style.display = tab === 'flagged' ? 'block' : 'none';
   document.getElementById('review-tab-all').style.display = tab === 'all' ? 'block' : 'none';
+}
+
+// ── Admin: Review Removal Requests ──
+async function loadAdminReviewRequests() {
+  const [pendingRes, allRes] = await Promise.all([
+    api('GET', '/admin/review-removal-requests?status=pending'),
+    api('GET', '/admin/review-removal-requests'),
+  ]);
+  const pending = pendingRes.requests || [];
+  const all = allRes.requests || [];
+  const content = document.getElementById('content-area');
+  content.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0;"><i class="fas fa-trash-alt"></i> Review Removal Requests</h2>
+      ${pending.length ? '<span class="badge badge-danger" style="font-size:13px;padding:6px 12px;">'+pending.length+' Pending</span>' : ''}
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showRRTab('pending',this)">Pending (${pending.length})</button>
+      <button class="tab-btn" onclick="showRRTab('all',this)">All Requests (${all.length})</button>
+    </div>
+    <div id="rr-tab-pending">
+      ${pending.length ? pending.map(r => renderRemovalRequestCard(r)).join('') : '<div class="empty-state"><i class="fas fa-check-circle" style="color:#16a34a"></i><h3>No pending requests</h3></div>'}
+    </div>
+    <div id="rr-tab-all" style="display:none;">
+      ${all.length ? all.map(r => renderRemovalRequestCard(r)).join('') : '<div class="empty-state"><i class="fas fa-inbox"></i><h3>No requests yet</h3></div>'}
+    </div>`;
+}
+
+function showRRTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('rr-tab-pending').style.display = tab === 'pending' ? 'block' : 'none';
+  document.getElementById('rr-tab-all').style.display = tab === 'all' ? 'block' : 'none';
+}
+
+function renderRemovalRequestCard(r) {
+  const statusColor = { pending: '#f59e0b', approved: '#16a34a', rejected: '#dc2626' };
+  return `
+    <div class="card" style="margin-bottom:14px;border-left:3px solid ${statusColor[r.status]||'#e2e8f0'};">
+      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        <div>
+          <div style="font-weight:700;font-size:15px;">${r.employee_name} <span style="font-size:12px;color:#64748b;">(${r.employee_email})</span></div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">Review by: <b>${r.company_name}</b> · ${r.rating}★</div>
+        </div>
+        <span class="badge" style="background:${statusColor[r.status]||'#94a3b8'};color:white;font-size:12px;padding:4px 10px;border-radius:20px;">${r.status.toUpperCase()}</span>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+        <div style="font-size:12px;color:#64748b;font-weight:600;margin-bottom:4px;">Review Text:</div>
+        <div style="font-size:13px;color:#374151;">${r.review_text||'-'}</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px;color:#64748b;font-weight:600;">Employee's Reason:</div>
+        <div style="font-size:13px;color:#374151;">${r.reason}</div>
+        ${r.payment_ref ? '<div style="font-size:12px;color:#2563eb;margin-top:4px;"><i class="fas fa-credit-card"></i> Payment ref: <b>'+r.payment_ref+'</b></div>' : '<div style="font-size:12px;color:#f59e0b;margin-top:4px;"><i class="fas fa-exclamation-circle"></i> No payment reference provided</div>'}
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Requested: ${timeAgo(r.created_at)}</div>
+      ${r.status === 'pending' ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-sm btn-success" onclick="processRemovalRequest(${r.id},'approved')">
+            <i class="fas fa-check"></i> Approve & Delete Review
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="processRemovalRequest(${r.id},'rejected')">
+            <i class="fas fa-times"></i> Reject
+          </button>
+        </div>` : `<div style="font-size:12px;color:#64748b;">${r.admin_notes ? '<i class="fas fa-comment"></i> Admin note: '+r.admin_notes : ''}</div>`}
+    </div>`;
+}
+
+function processRemovalRequest(reqId, status) {
+  const isApprove = status === 'approved';
+  createModal('process-rr-modal', isApprove ? '✅ Approve Request' : '❌ Reject Request', `
+    <p style="font-size:14px;color:#374151;margin-bottom:14px;">
+      ${isApprove ? 'Approve this removal request? The review will be permanently deleted.' : 'Reject this removal request? Employee will be notified.'}
+    </p>
+    ${isApprove ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;font-size:13px;color:#16a34a;margin-bottom:12px;"><i class="fas fa-info-circle"></i> Ensure payment of ₹499 has been received before approving.</div>' : ''}
+    <div class="form-group">
+      <label class="form-label">Admin Notes (optional)</label>
+      <input type="text" id="rr-admin-notes" class="form-control" placeholder="e.g. Payment verified, review deleted / Reason not sufficient">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Amount Charged (₹)</label>
+      <input type="number" id="rr-amount" class="form-control" value="499">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn ${isApprove?'btn-success':'btn-danger'}" onclick="confirmProcessRR(${reqId},'${status}',${isApprove})">
+        <i class="fas fa-${isApprove?'check':'times'}"></i> Confirm ${isApprove?'Approve':'Reject'}
+      </button>
+      <button class="btn btn-outline" onclick="hideModal('process-rr-modal')">Cancel</button>
+    </div>
+  `);
+}
+
+async function confirmProcessRR(reqId, status, deleteReview) {
+  const notes = document.getElementById('rr-admin-notes')?.value?.trim();
+  const amount = parseFloat(document.getElementById('rr-amount')?.value) || 499;
+  const res = await api('PUT', `/admin/review-removal-requests/${reqId}`, {
+    status, admin_notes: notes, amount_charged: amount, delete_review: deleteReview
+  });
+  if (res.success) {
+    toast(res.message, 'success');
+    hideModal('process-rr-modal');
+    loadAdminReviewRequests();
+  } else toast(res.message, 'error');
 }
 
 function renderAdminReviewCard(r) {
@@ -1371,21 +1686,24 @@ function renderHRMSEmployees() {
       </div>
     </div>
     ${hrmsEmployees.length ? hrmsEmployees.map(e => `
-      <div class="card" style="margin-bottom:12px;padding:16px;">
+      <div class="card" style="margin-bottom:12px;padding:16px;${!e.is_active?'opacity:0.65;border-left:3px solid #f59e0b;':''}">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-          <div class="sidebar-avatar" style="background:linear-gradient(135deg,#2563eb,#7c3aed);width:46px;height:46px;font-size:17px;flex-shrink:0;">
+          <div class="sidebar-avatar" style="background:${e.is_active?'linear-gradient(135deg,#2563eb,#7c3aed)':'#94a3b8'};width:46px;height:46px;font-size:17px;flex-shrink:0;">
             ${(e.full_name||'?')[0].toUpperCase()}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;font-size:15px;">${e.full_name||'-'}</div>
+            <div style="font-weight:700;font-size:15px;">${e.full_name||'-'} ${!e.is_active?'<span class="badge badge-warning" style="font-size:10px;">Discontinued</span>':''}</div>
             <div style="font-size:13px;color:#2563eb;">${e.designation||e.current_job_title||'Employee'}</div>
-            <div style="font-size:12px;color:#64748b;">${e.department||''} ${e.email ? '· '+e.email : ''}</div>
+            <div style="font-size:12px;color:#64748b;">${e.department||''} ${e.email ? '· '+e.email : ''} ${e.employee_code ? '· #'+e.employee_code : ''}</div>
           </div>
           <div style="text-align:right;flex-shrink:0;">
-            ${e.basic_salary ? `<div style="font-weight:700;color:#16a34a;font-size:14px;">₹${Number(e.basic_salary).toLocaleString('en-IN')}/mo</div>` : '<div style="color:#94a3b8;font-size:12px;">Salary not set</div>'}
+            ${e.basic_salary ? '<div style="font-weight:700;color:#16a34a;font-size:14px;">₹'+Number(e.basic_salary).toLocaleString('en-IN')+'/mo</div>' : '<div style="color:#94a3b8;font-size:12px;">Salary not set</div>'}
             <div style="font-size:11px;color:#64748b;">${e.join_date ? 'Joined: '+e.join_date : ''}</div>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-sm ${e.is_active?'btn-warning':'btn-success'}" onclick="toggleHRMSEmployee(${e.id},'${(e.full_name||'').replace(/'/g,'')}',${e.is_active})">
+              <i class="fas fa-${e.is_active?'user-slash':'user-check'}"></i> ${e.is_active?'Discontinue':'Reactivate'}
+            </button>
             <button class="btn btn-sm btn-outline" onclick="showEditHRMSEmployee(${JSON.stringify(e).replace(/"/g,'&quot;')})"><i class="fas fa-edit"></i> Edit</button>
           </div>
         </div>
@@ -1674,6 +1992,21 @@ async function removeHRMSEmployee(staffId, name) {
   if (res.success) {
     toast('Employee removed from HRMS', 'success');
     hideModal('edit-hrms-emp');
+    const empRes = await api('GET', '/company/hrms/employees');
+    hrmsEmployees = empRes.employees || [];
+    renderHRMSEmployees();
+  } else toast(res.message, 'error');
+}
+
+async function toggleHRMSEmployee(staffId, name, isActive) {
+  const action = isActive ? 'discontinue' : 'reactivate';
+  const msg = isActive
+    ? `Discontinue "${name}"? They will be marked as inactive and won't appear in active attendance/salary lists.`
+    : `Reactivate "${name}"? They will be marked as active again.`;
+  if (!confirm(msg)) return;
+  const res = await api('PUT', `/company/hrms/employees/${staffId}/toggle`);
+  if (res.success) {
+    toast(res.message, 'success');
     const empRes = await api('GET', '/company/hrms/employees');
     hrmsEmployees = empRes.employees || [];
     renderHRMSEmployees();
@@ -2180,7 +2513,8 @@ async function loadEmployeeSection(section) {
   currentRole = 'employee';
   const titles = {
     dashboard: 'My Dashboard', 'find-jobs': 'Find Jobs',
-    'my-applications': 'My Applications', 'saved-jobs': 'Saved Jobs', 'my-profile': 'My Profile'
+    'my-applications': 'My Applications', 'saved-jobs': 'Saved Jobs', 'my-profile': 'My Profile',
+    'my-reviews': 'My Reviews'
   };
   const navLinks = document.querySelectorAll('.nav-link');
   navLinks.forEach(l => l.classList.remove('active'));
@@ -2196,6 +2530,7 @@ async function loadEmployeeSection(section) {
   else if (section === 'my-applications') await loadMyApplications();
   else if (section === 'saved-jobs') await loadSavedJobs();
   else if (section === 'my-profile') await loadMyProfile();
+  else if (section === 'my-reviews') await loadMyReviews();
 }
 
 async function loadEmployeeDashboard() {
@@ -2539,6 +2874,87 @@ async function loadSavedJobs() {
 async function unsaveJob(jobId) {
   const res = await api('POST', `/jobs/${jobId}/save`);
   if (res.success) { toast('Job removed from saved', 'info'); loadSavedJobs(); }
+}
+
+// ── EMPLOYEE: My Reviews (with removal request) ──
+async function loadMyReviews() {
+  const res = await api('GET', '/reviews/my');
+  const reviewsList = res.reviews || [];
+  const content = document.getElementById('content-area');
+
+  const statusBadge = (s) => {
+    if (!s) return '';
+    const map = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
+    return `<span class="badge ${map[s]||'badge-primary'}" style="font-size:10px;margin-left:6px;"><i class="fas fa-${s==='pending'?'clock':s==='approved'?'check':'times'}"></i> Removal ${s}</span>`;
+  };
+
+  content.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0 0 6px;"><i class="fas fa-star"></i> My Reviews (${reviewsList.length})</h2>
+      <p style="font-size:13px;color:#64748b;margin:0;">Reviews given by employers. If you believe a review is unfair, you can request its removal.</p>
+    </div>
+    ${reviewsList.length ? reviewsList.map(r => `
+      <div class="review-card ${r.is_flagged?'review-flag':''}" style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div>
+            <div style="font-weight:700;font-size:15px;">${r.company_name}</div>
+            <div style="font-size:12px;color:#64748b;">${r.job_title||''} ${r.worked_from?'· '+r.worked_from+(r.worked_to?' to '+r.worked_to:''):''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div class="stars">${stars(r.rating)}</div>
+            ${r.is_flagged?'<span class="badge badge-danger"><i class="fas fa-flag"></i> Flagged</span>':''}
+            ${statusBadge(r.removal_status)}
+          </div>
+        </div>
+        <p style="color:#374151;font-size:14px;margin:0 0 10px;">${r.review_text||'No review text'}</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:11px;color:#94a3b8;">${timeAgo(r.created_at)}</div>
+          ${!r.removal_status || r.removal_status === 'rejected' ? `
+            <button class="btn btn-sm btn-outline" style="border-color:#dc2626;color:#dc2626;" onclick="showReviewRemovalModal(${r.id},'${r.company_name.replace(/'/g,'')}')">
+              <i class="fas fa-trash-alt"></i> Request Removal
+            </button>` : `<span style="font-size:12px;color:#64748b;font-style:italic;">${r.removal_status==='pending'?'⏳ Removal request under review':'✅ Approved — review will be removed'}</span>`}
+        </div>
+      </div>`).join('') : `
+      <div class="empty-state">
+        <i class="fas fa-star"></i>
+        <h3>No reviews yet</h3>
+        <p>Employer reviews will appear here once you complete work engagements.</p>
+      </div>`}`;
+}
+
+function showReviewRemovalModal(reviewId, companyName) {
+  createModal('review-removal-modal', '🗑️ Request Review Removal', `
+    <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#92400e;">
+      <i class="fas fa-info-circle"></i> <b>Review by: ${companyName}</b><br>
+      Removal requests are reviewed by admin. A nominal fee of <b>₹499</b> is charged upon approval.<br>
+      Please provide your payment reference (UPI/bank transfer) below after payment.
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reason for Removal *</label>
+      <textarea id="removal-reason" class="form-control" rows="3" placeholder="Explain why this review should be removed (e.g. false information, harassment, etc.)"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Payment Reference (UPI / UTR)</label>
+      <input type="text" id="removal-payment-ref" class="form-control" placeholder="e.g. UPI ref: 4251XXXXXXXX (pay ₹499 to admin@upi)">
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">Pay ₹499 to <b>admin@myplacement.upi</b> and enter reference here. Admin will verify before processing.</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn btn-danger" onclick="submitReviewRemovalRequest(${reviewId})"><i class="fas fa-paper-plane"></i> Submit Request</button>
+      <button class="btn btn-outline" onclick="hideModal('review-removal-modal')">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitReviewRemovalRequest(reviewId) {
+  const reason = document.getElementById('removal-reason')?.value?.trim();
+  const paymentRef = document.getElementById('removal-payment-ref')?.value?.trim();
+  if (!reason) return toast('Please provide a reason', 'error');
+  const res = await api('POST', `/reviews/${reviewId}/request-removal`, { reason, payment_ref: paymentRef });
+  if (res.success) {
+    toast(res.message, 'success');
+    hideModal('review-removal-modal');
+    loadMyReviews();
+  } else toast(res.message, 'error');
 }
 
 async function loadMyProfile() {
