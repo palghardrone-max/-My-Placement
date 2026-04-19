@@ -160,8 +160,10 @@ admin.get('/employees', async (c) => {
     const employees = await c.env.DB.prepare(`
       SELECT ep.*, u.email, u.is_active,
         (SELECT COUNT(*) FROM job_applications WHERE employee_id = ep.id) as total_applications,
-        (SELECT AVG(rating) FROM employee_reviews WHERE employee_id = ep.id) as avg_rating,
-        (SELECT COUNT(*) FROM employee_reviews WHERE employee_id = ep.id AND is_flagged = 1) as flag_count
+        (SELECT ROUND(AVG(rating),1) FROM employee_reviews WHERE employee_id = ep.id) as avg_rating,
+        (SELECT COUNT(*) FROM employee_reviews WHERE employee_id = ep.id AND is_flagged = 1) as flag_count,
+        (SELECT hs.basic_salary FROM hrms_staff hs WHERE hs.employee_profile_id = ep.id AND hs.is_active = 1 LIMIT 1) as hrms_salary,
+        (SELECT c2.company_name FROM hrms_staff hs2 JOIN companies c2 ON hs2.company_id = c2.id WHERE hs2.employee_profile_id = ep.id AND hs2.is_active = 1 LIMIT 1) as hrms_company
       FROM employee_profiles ep JOIN users u ON ep.user_id = u.id
       ORDER BY ep.created_at DESC
     `).all()
@@ -353,11 +355,14 @@ admin.get('/employees/search', async (c) => {
     const offset = (pageNum - 1) * 50
 
     let query = `
-      SELECT ep.id, ep.full_name, ep.current_job_title, ep.city, ep.state, ep.total_experience_years,
+      SELECT ep.id, ep.full_name, ep.current_job_title, ep.current_company, ep.city, ep.state,
+             ep.total_experience_years, ep.expected_salary,
              u.email, u.is_active, u.created_at,
              (SELECT COUNT(*) FROM job_applications WHERE employee_id = ep.id) as total_applications,
              (SELECT ROUND(AVG(rating),1) FROM employee_reviews WHERE employee_id = ep.id) as avg_rating,
-             (SELECT COUNT(*) FROM employee_reviews WHERE employee_id = ep.id AND is_flagged = 1) as flag_count
+             (SELECT COUNT(*) FROM employee_reviews WHERE employee_id = ep.id AND is_flagged = 1) as flag_count,
+             (SELECT hs.basic_salary FROM hrms_staff hs WHERE hs.employee_profile_id = ep.id AND hs.is_active = 1 LIMIT 1) as hrms_salary,
+             (SELECT c2.company_name FROM hrms_staff hs2 JOIN companies c2 ON hs2.company_id = c2.id WHERE hs2.employee_profile_id = ep.id AND hs2.is_active = 1 LIMIT 1) as hrms_company
       FROM employee_profiles ep JOIN users u ON ep.user_id = u.id
       WHERE 1=1`
     const params: any[] = []

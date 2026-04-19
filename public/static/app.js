@@ -795,7 +795,7 @@ async function loadAdminEmployees(q = '', city = '', flag = '') {
       <button class="btn btn-outline btn-sm" onclick="downloadEmployeesCSV()"><i class="fas fa-download"></i> Download CSV</button>
     </div>
     <div class="card" style="margin-bottom:16px;padding:14px;">
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:end;flex-wrap:wrap;">
+      <div class="filter-grid-3">
         <div class="form-group" style="margin:0;">
           <label class="form-label">Search (name / email / job title)</label>
           <input type="text" id="emp-search-q" class="form-control" placeholder="Type to search..." value="${q}" oninput="debounceAdminEmpSearch()">
@@ -816,22 +816,28 @@ async function loadAdminEmployees(q = '', city = '', flag = '') {
     <div class="card" style="padding:0;overflow:hidden;">
       <div class="table-responsive">
         <table class="data-table">
-          <thead><tr><th>Employee</th><th>Location</th><th>Exp</th><th>Applications</th><th>Rating</th><th>Flags</th><th>Status</th></tr></thead>
+          <thead><tr><th>Employee</th><th>Current Company</th><th>Monthly Salary</th><th>Location</th><th>Exp</th><th>Apps</th><th>Rating</th><th>Flags</th><th>Status</th></tr></thead>
           <tbody>
             ${_adminEmpData.map(e => `
               <tr>
-                <td>
+                <td data-label="Employee">
                   <div style="font-weight:600;">${e.full_name}</div>
                   <div style="font-size:12px;color:#64748b;">${e.email}</div>
                   <div style="font-size:12px;color:#94a3b8;">${e.current_job_title||'-'}</div>
                 </td>
-                <td>${[e.city,e.state].filter(Boolean).join(', ')||'-'}</td>
-                <td>${e.total_experience_years||0} yrs</td>
-                <td>${e.total_applications||0}</td>
-                <td>${e.avg_rating ? parseFloat(e.avg_rating).toFixed(1)+' ⭐' : '-'}</td>
-                <td>${e.flag_count > 0 ? '<span class="badge badge-danger">'+e.flag_count+' flags</span>' : '<span class="badge badge-success">Clean</span>'}</td>
-                <td>${e.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
-              </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8;">No employees found</td></tr>'}
+                <td data-label="Current Company">
+                  ${e.hrms_company ? `<span style="font-weight:600;color:#2563eb;">${e.hrms_company}</span>` : (e.current_company ? `<span style="color:#64748b;">${e.current_company}</span>` : '<span style="color:#94a3b8;">-</span>')}
+                </td>
+                <td data-label="Monthly Salary">
+                  ${e.hrms_salary ? `<span style="font-weight:700;color:#16a34a;">₹${Number(e.hrms_salary).toLocaleString('en-IN')}/mo</span>` : (e.expected_salary ? `<span style="color:#94a3b8;font-size:12px;">Exp: ₹${Number(e.expected_salary).toLocaleString('en-IN')}</span>` : '<span style="color:#94a3b8;">-</span>')}
+                </td>
+                <td data-label="Location">${[e.city,e.state].filter(Boolean).join(', ')||'-'}</td>
+                <td data-label="Exp">${e.total_experience_years||0} yrs</td>
+                <td data-label="Apps">${e.total_applications||0}</td>
+                <td data-label="Rating">${e.avg_rating ? parseFloat(e.avg_rating).toFixed(1)+' ⭐' : '-'}</td>
+                <td data-label="Flags">${e.flag_count > 0 ? '<span class="badge badge-danger">'+e.flag_count+' flags</span>' : '<span class="badge badge-success">Clean</span>'}</td>
+                <td data-label="Status">${e.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
+              </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8;">No employees found</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -851,9 +857,11 @@ function debounceAdminEmpSearch() {
 
 function downloadEmployeesCSV() {
   if (!_adminEmpData.length) return toast('No data to download', 'error');
-  const headers = ['Name','Email','Job Title','City','State','Experience (yrs)','Applications','Avg Rating','Flag Count','Status','Joined'];
+  const headers = ['Name','Email','Job Title','Current Company (HRMS)','Monthly Salary (HRMS)','Self-Reported Company','City','State','Experience (yrs)','Applications','Avg Rating','Flag Count','Status','Joined'];
   const rows = _adminEmpData.map(e => [
     e.full_name, e.email, e.current_job_title||'',
+    e.hrms_company||'', e.hrms_salary||'',
+    e.current_company||'',
     e.city||'', e.state||'', e.total_experience_years||0,
     e.total_applications||0,
     e.avg_rating ? parseFloat(e.avg_rating).toFixed(1) : '',
