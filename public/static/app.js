@@ -1370,25 +1370,33 @@ async function submitPostJob() {
 }
 
 async function saveEditJob(id) {
+  const g = (elemId) => { const el = document.getElementById(elemId); return el ? el.value : ''; };
+  const salMin = parseInt(g('jb-sal-min'));
+  const salMax = parseInt(g('jb-sal-max'));
+  const deadline = g('jb-deadline');
   const body = {
-    title: document.getElementById('jb-title').value,
-    department: document.getElementById('jb-dept').value,
-    job_type: document.getElementById('jb-type').value,
-    work_mode: document.getElementById('jb-mode').value,
-    city: document.getElementById('jb-city').value,
-    state: document.getElementById('jb-state').value,
-    description: document.getElementById('jb-desc').value,
-    requirements: document.getElementById('jb-req').value,
-    responsibilities: document.getElementById('jb-resp').value,
-    skills_required: JSON.parse(document.getElementById('jb-skills').value || '[]'),
-    experience_min: parseFloat(document.getElementById('jb-exp-min').value) || 0,
-    experience_max: parseFloat(document.getElementById('jb-exp-max').value) || 10,
-    salary_min: parseInt(document.getElementById('jb-sal-min').value) || null,
-    salary_max: parseInt(document.getElementById('jb-sal-max').value) || null,
+    title:           g('jb-title'),
+    department:      g('jb-dept'),
+    job_type:        g('jb-type'),
+    work_mode:       g('jb-mode'),
+    city:            g('jb-city'),
+    state:           g('jb-state'),
+    description:     g('jb-desc'),
+    requirements:    g('jb-req'),
+    responsibilities: g('jb-resp'),
+    skills_required: JSON.parse(g('jb-skills') || '[]'),
+    experience_min:  parseFloat(g('jb-exp-min')) || 0,
+    experience_max:  parseFloat(g('jb-exp-max')) || 10,
+    salary_min:      isNaN(salMin) ? null : salMin,
+    salary_max:      isNaN(salMax) ? null : salMax,
+    no_of_openings:  parseInt(g('jb-openings')) || 1,
+    application_deadline: deadline || null,
   };
+  if (!body.title || !body.description || !body.requirements)
+    return toast('Title, description and requirements are required', 'error');
   const res = await api('PUT', `/company/jobs/${id}`, body);
-  if (res.success) { toast('Job updated!', 'success'); loadEmployerSection('my-jobs'); }
-  else toast(res.message, 'error');
+  if (res.success) { toast('Job updated successfully!', 'success'); loadEmployerSection('my-jobs'); }
+  else toast(res.message || 'Failed to update job', 'error');
 }
 
 async function loadMyJobs() {

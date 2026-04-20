@@ -157,6 +157,30 @@ reviews.get('/my', async (c) => {
   }
 })
 
+// ── EMPLOYEE: List own removal requests ──
+reviews.get('/removal-requests', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employee') return c.json({ success: false, message: 'Employee access required' }, 403)
+
+    const ep = await c.env.DB.prepare('SELECT id FROM employee_profiles WHERE user_id = ?').bind(user.userId).first() as any
+    if (!ep) return c.json({ success: false, message: 'Profile not found' }, 404)
+
+    const requests = await c.env.DB.prepare(`
+      SELECT rrr.*, er.review_text, er.rating, c.company_name
+      FROM review_removal_requests rrr
+      JOIN employee_reviews er ON rrr.review_id = er.id
+      JOIN companies c ON er.company_id = c.id
+      WHERE rrr.employee_profile_id = ?
+      ORDER BY rrr.created_at DESC
+    `).bind(ep.id).all()
+
+    return c.json({ success: true, requests: requests.results })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
 // ── EMPLOYEE: Request review removal ──
 reviews.post('/:id/request-removal', async (c) => {
   try {

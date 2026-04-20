@@ -34,10 +34,8 @@ company.put('/profile', async (c) => {
     if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
 
     const body = await c.req.json()
-    const {
-      company_name, industry, description, website, logo_url, location,
-      city, state, country, pincode, company_size, founded_year, contact_phone, contact_email
-    } = body
+    // Convert undefined → null so D1 never receives JS 'undefined'
+    const nv = (v: any) => (v === undefined || v === '' ? null : v)
 
     await c.env.DB.prepare(`
       UPDATE companies SET
@@ -58,8 +56,11 @@ company.put('/profile', async (c) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ?
     `).bind(
-      company_name, industry, description, website, logo_url, location,
-      city, state, country, pincode, company_size, founded_year, contact_phone, contact_email,
+      nv(body.company_name), nv(body.industry), nv(body.description),
+      nv(body.website), nv(body.logo_url), nv(body.location),
+      nv(body.city), nv(body.state), nv(body.country), nv(body.pincode),
+      nv(body.company_size), nv(body.founded_year),
+      nv(body.contact_phone), nv(body.contact_email),
       user.userId
     ).run()
 
@@ -123,13 +124,27 @@ company.post('/jobs', async (c) => {
         education_required, no_of_openings, application_deadline
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      comp.id, title, department || '', job_type || 'full_time', work_mode || 'onsite',
-      location || city || '', city || '', state || '', country || 'India',
-      description, requirements, responsibilities || '',
+      comp.id,
+      title,
+      department || '',
+      job_type || 'full_time',
+      work_mode || 'onsite',
+      location || city || '',
+      city || '',
+      state || '',
+      country || 'India',
+      description,
+      requirements,
+      responsibilities || '',
       JSON.stringify(skills_required || []),
-      experience_min || 0, experience_max || 10,
-      salary_min || null, salary_max || null, salary_currency || 'INR',
-      education_required || '', no_of_openings || 1, application_deadline || null
+      experience_min != null ? Number(experience_min) : 0,
+      experience_max != null ? Number(experience_max) : 10,
+      salary_min != null && salary_min !== '' ? Number(salary_min) : null,
+      salary_max != null && salary_max !== '' ? Number(salary_max) : null,
+      salary_currency || 'INR',
+      education_required || '',
+      no_of_openings != null ? Number(no_of_openings) : 1,
+      application_deadline || null
     ).run()
 
     return c.json({ success: true, message: 'Job posted successfully', jobId: result.meta.last_row_id })
@@ -146,47 +161,65 @@ company.put('/jobs/:id', async (c) => {
 
     const jobId = c.req.param('id')
     const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
-    
-    const job = await c.env.DB.prepare('SELECT id FROM jobs WHERE id = ? AND company_id = ?').bind(jobId, comp?.id).first()
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const job = await c.env.DB.prepare('SELECT id FROM jobs WHERE id = ? AND company_id = ?').bind(jobId, comp.id).first()
     if (!job) return c.json({ success: false, message: 'Job not found' }, 404)
 
     const body = await c.req.json()
-    const {
-      title, department, job_type, work_mode, location, city, state, country,
-      description, requirements, responsibilities, skills_required,
-      experience_min, experience_max, salary_min, salary_max,
-      education_required, no_of_openings, application_deadline, is_active
-    } = body
+
+    // Helper: convert undefined → null so D1 never gets 'undefined'
+    const n = (v: any) => (v === undefined || v === '' ? null : v)
+    const num = (v: any) => (v === undefined || v === null || v === '' ? null : Number(v))
+
+    const title          = n(body.title)
+    const department     = n(body.department)
+    const job_type       = n(body.job_type)
+    const work_mode      = n(body.work_mode)
+    const location       = n(body.location ?? body.city)
+    const city           = n(body.city)
+    const state          = n(body.state)
+    const description    = n(body.description)
+    const requirements   = n(body.requirements)
+    const responsibilities = n(body.responsibilities)
+    const skills_req     = body.skills_required != null ? JSON.stringify(body.skills_required) : null
+    const exp_min        = num(body.experience_min)
+    const exp_max        = num(body.experience_max)
+    const sal_min        = num(body.salary_min)
+    const sal_max        = num(body.salary_max)
+    const edu_req        = n(body.education_required)
+    const openings       = num(body.no_of_openings)
+    const deadline       = n(body.application_deadline)
+    const is_active      = body.is_active != null ? (body.is_active ? 1 : 0) : null
 
     await c.env.DB.prepare(`
       UPDATE jobs SET
-        title = COALESCE(?, title),
-        department = COALESCE(?, department),
-        job_type = COALESCE(?, job_type),
-        work_mode = COALESCE(?, work_mode),
-        location = COALESCE(?, location),
-        city = COALESCE(?, city),
-        state = COALESCE(?, state),
-        description = COALESCE(?, description),
-        requirements = COALESCE(?, requirements),
-        responsibilities = COALESCE(?, responsibilities),
-        skills_required = COALESCE(?, skills_required),
-        experience_min = COALESCE(?, experience_min),
-        experience_max = COALESCE(?, experience_max),
-        salary_min = COALESCE(?, salary_min),
-        salary_max = COALESCE(?, salary_max),
-        education_required = COALESCE(?, education_required),
-        no_of_openings = COALESCE(?, no_of_openings),
+        title                = COALESCE(?, title),
+        department           = COALESCE(?, department),
+        job_type             = COALESCE(?, job_type),
+        work_mode            = COALESCE(?, work_mode),
+        location             = COALESCE(?, location),
+        city                 = COALESCE(?, city),
+        state                = COALESCE(?, state),
+        description          = COALESCE(?, description),
+        requirements         = COALESCE(?, requirements),
+        responsibilities     = COALESCE(?, responsibilities),
+        skills_required      = COALESCE(?, skills_required),
+        experience_min       = COALESCE(?, experience_min),
+        experience_max       = COALESCE(?, experience_max),
+        salary_min           = COALESCE(?, salary_min),
+        salary_max           = COALESCE(?, salary_max),
+        education_required   = COALESCE(?, education_required),
+        no_of_openings       = COALESCE(?, no_of_openings),
         application_deadline = COALESCE(?, application_deadline),
-        is_active = COALESCE(?, is_active),
-        updated_at = CURRENT_TIMESTAMP
+        is_active            = COALESCE(?, is_active),
+        updated_at           = CURRENT_TIMESTAMP
       WHERE id = ?
     `).bind(
       title, department, job_type, work_mode, location, city, state,
-      description, requirements, responsibilities,
-      skills_required ? JSON.stringify(skills_required) : null,
-      experience_min, experience_max, salary_min, salary_max,
-      education_required, no_of_openings, application_deadline, is_active,
+      description, requirements, responsibilities, skills_req,
+      exp_min, exp_max, sal_min, sal_max,
+      edu_req, openings, deadline, is_active,
       jobId
     ).run()
 
