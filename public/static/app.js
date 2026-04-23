@@ -816,7 +816,7 @@ async function loadAdminEmployees(q = '', city = '', flag = '') {
     <div class="card" style="padding:0;overflow:hidden;">
       <div class="table-responsive">
         <table class="data-table">
-          <thead><tr><th>Employee</th><th>Current Company</th><th>Monthly Salary</th><th>Location</th><th>Exp</th><th>Apps</th><th>Rating</th><th>Flags</th><th>Status</th></tr></thead>
+          <thead><tr><th>Employee</th><th>Current Company</th><th>Monthly Salary</th><th>Location</th><th>Exp</th><th>Apps</th><th>Rating</th><th>Flags</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             ${_adminEmpData.map(e => `
               <tr>
@@ -837,7 +837,17 @@ async function loadAdminEmployees(q = '', city = '', flag = '') {
                 <td data-label="Rating">${e.avg_rating ? parseFloat(e.avg_rating).toFixed(1)+' ⭐' : '-'}</td>
                 <td data-label="Flags">${e.flag_count > 0 ? '<span class="badge badge-danger">'+e.flag_count+' flags</span>' : '<span class="badge badge-success">Clean</span>'}</td>
                 <td data-label="Status">${e.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
-              </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8;">No employees found</td></tr>'}
+                <td data-label="Actions">
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                    <button class="btn btn-sm ${e.is_active ? 'btn-warning' : 'btn-success'}" title="${e.is_active ? 'Deactivate' : 'Activate'}" onclick="adminToggleEmployee(${e.id})">
+                      <i class="fas fa-${e.is_active ? 'ban' : 'check'}"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" title="Delete Employee" onclick="adminDeleteEmployee(${e.id},'${e.full_name.replace(/'/g,"\\'")}')">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;padding:30px;color:#94a3b8;">No employees found</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -876,6 +886,51 @@ function downloadEmployeesCSV() {
   a.href = url; a.download = `employees_${new Date().toISOString().split('T')[0]}.csv`;
   a.click(); URL.revokeObjectURL(url);
   toast('CSV downloaded!', 'success');
+}
+
+// ── Admin: Toggle Employee Active Status ──
+async function adminToggleEmployee(epId) {
+  const res = await api('PUT', `/admin/employees/${epId}/toggle`);
+  if (res.success) {
+    toast(res.message || 'Employee status updated', 'success');
+    const q = document.getElementById('emp-search-q')?.value || '';
+    const city = document.getElementById('emp-search-city')?.value || '';
+    const flag = document.getElementById('emp-search-flag')?.value || '';
+    loadAdminEmployees(q, city, flag);
+  } else {
+    toast(res.message || 'Failed to update status', 'error');
+  }
+}
+
+// ── Admin: Delete Employee ──
+function adminDeleteEmployee(epId, name) {
+  createModal('confirm-del-employee', '⚠️ Delete Employee', `
+    <div style="text-align:center;padding:10px 0;">
+      <div style="font-size:48px;margin-bottom:12px;">🗑️</div>
+      <p style="font-size:15px;color:#374151;margin-bottom:8px;">Are you sure you want to delete <strong>${name}</strong>?</p>
+      <p style="font-size:13px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;margin-top:8px;">
+        <i class="fas fa-exclamation-triangle"></i> This will permanently remove the employee profile, all applications and reviews. User account will be deactivated.
+      </p>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn btn-danger" onclick="confirmDeleteEmployee(${epId})"><i class="fas fa-trash"></i> Yes, Delete</button>
+      <button class="btn btn-outline" onclick="hideModal('confirm-del-employee')">Cancel</button>
+    </div>
+  `);
+}
+
+async function confirmDeleteEmployee(epId) {
+  const res = await api('DELETE', `/admin/employees/${epId}`);
+  if (res.success) {
+    toast('Employee deleted successfully', 'success');
+    hideModal('confirm-del-employee');
+    const q = document.getElementById('emp-search-q')?.value || '';
+    const city = document.getElementById('emp-search-city')?.value || '';
+    const flag = document.getElementById('emp-search-flag')?.value || '';
+    loadAdminEmployees(q, city, flag);
+  } else {
+    toast(res.message || 'Delete failed', 'error');
+  }
 }
 
 async function loadAdminJobs() {

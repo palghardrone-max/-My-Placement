@@ -388,6 +388,52 @@ admin.get('/employees/search', async (c) => {
   }
 })
 
+// ── Toggle employee active status ──
+admin.put('/employees/:id/toggle', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const epId = c.req.param('id')
+    // Get the user_id from employee_profiles first
+    const ep = await c.env.DB.prepare('SELECT user_id FROM employee_profiles WHERE id = ?').bind(epId).first() as any
+    if (!ep) return c.json({ success: false, message: 'Employee not found' }, 404)
+
+    await c.env.DB.prepare(
+      'UPDATE users SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?'
+    ).bind(ep.user_id).run()
+
+    return c.json({ success: true, message: 'Employee status updated' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// ── Delete employee (deactivate + remove profile) ──
+admin.delete('/employees/:id', async (c) => {
+  try {
+    const user = requireAdmin(c)
+    if (!user) return c.json({ success: false, message: 'Admin access required' }, 403)
+
+    const epId = c.req.param('id')
+    // Get user_id before deleting
+    const ep = await c.env.DB.prepare('SELECT user_id FROM employee_profiles WHERE id = ?').bind(epId).first() as any
+    if (!ep) return c.json({ success: false, message: 'Employee not found' }, 404)
+
+    // Remove related records first to respect foreign keys
+    await c.env.DB.prepare('DELETE FROM job_applications WHERE employee_id = ?').bind(epId).run()
+    await c.env.DB.prepare('DELETE FROM employee_reviews WHERE employee_id = ?').bind(epId).run()
+    await c.env.DB.prepare('DELETE FROM review_removal_requests WHERE employee_profile_id = ?').bind(epId).run()
+    await c.env.DB.prepare('DELETE FROM employee_profiles WHERE id = ?').bind(epId).run()
+    // Deactivate user account instead of hard-deleting (preserves auth record)
+    await c.env.DB.prepare('UPDATE users SET is_active = 0 WHERE id = ?').bind(ep.user_id).run()
+
+    return c.json({ success: true, message: 'Employee deleted successfully' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
 // ── REVIEW REMOVAL REQUESTS: list ──
 admin.get('/review-removal-requests', async (c) => {
   try {
