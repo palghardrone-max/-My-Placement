@@ -47,8 +47,8 @@ function getMainHTML(): string {
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#1e3a5f">
-  <title>My Placement - Smart Job Matching Platform</title>
+  <meta name="theme-color" content="#e65c00">
+  <title>Shiv Sena Job Portal - महाराष्ट्रातील रोजगार</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <link rel="stylesheet" href="/static/style.css">
   <style>
