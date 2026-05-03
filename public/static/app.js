@@ -1,5 +1,5 @@
 // =============================================
-// SHIV SENA JOB PORTAL - Main Application
+// MY PLACEMENT - Main Application
 // =============================================
 const API = '/api';
 let currentUser = null;
@@ -136,24 +136,13 @@ function renderLogin(role = null) {
     <div class="auth-container">
       <div class="auth-card">
         <div class="auth-logo">
-          <img src="/static/shivsena_logo.png" alt="Shiv Sena" style="height:54px;width:54px;object-fit:contain;margin-bottom:6px;">
-          <h1 style="color:#7a1a00;">Shiv Sena Job Portal</h1>
-          <p>महाराष्ट्रातील रोजगार, शिवसेनेची जबाबदारी</p>
+          <h1><i class="fas fa-briefcase" style="color:#2563eb"></i> My Placement</h1>
+          <p>Smart Job Matching Platform</p>
         </div>
 
-        <!-- Eknath Shinde Leader Photo Strip -->
-        <div class="leader-photo-strip">
-          <img src="/static/eknath_shinde.jpg" alt="Eknath Shinde" onerror="this.style.display='none'">
-          <div class="leader-photo-info">
-            <h4>मा. एकनाथ शिंदे साहेब</h4>
-            <p>माजी मुख्यमंत्री, महाराष्ट्र</p>
-            <span class="party-tag">🏹 शिवसेना</span>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:8px;margin-bottom:24px;background:#fff3e0;border-radius:12px;padding:4px;">
-          <button onclick="switchAuthTab('login')" id="tab-login" class="btn" style="flex:1;font-size:13px;padding:8px;border-radius:8px;background:#e65c00;color:white;">Login</button>
-          <button onclick="switchAuthTab('register')" id="tab-register" class="btn" style="flex:1;font-size:13px;padding:8px;border-radius:8px;background:transparent;color:#7a1a00;">Register</button>
+        <div style="display:flex;gap:8px;margin-bottom:24px;background:#f1f5f9;border-radius:12px;padding:4px;">
+          <button onclick="switchAuthTab('login')" id="tab-login" class="btn" style="flex:1;font-size:13px;padding:8px;border-radius:8px;background:#2563eb;color:white;">Login</button>
+          <button onclick="switchAuthTab('register')" id="tab-register" class="btn" style="flex:1;font-size:13px;padding:8px;border-radius:8px;background:transparent;color:#64748b;">Register</button>
         </div>
 
         <div id="login-form">
@@ -169,9 +158,9 @@ function renderLogin(role = null) {
             <i class="fas fa-sign-in-alt"></i> Login
           </button>
           <div style="text-align:center;margin-top:12px;">
-            <a href="#" onclick="showForgotPassword();return false;" style="font-size:13px;color:#e65c00;text-decoration:none;"><i class="fas fa-key"></i> Forgot Password?</a>
+            <a href="#" onclick="showForgotPassword();return false;" style="font-size:13px;color:#2563eb;text-decoration:none;"><i class="fas fa-key"></i> Forgot Password?</a>
           </div>
-          <div style="margin-top:12px;padding:12px;background:#fff8f0;border-radius:10px;font-size:12px;color:#7a1a00;border:1px solid #fde8d0;">
+          <div style="margin-top:12px;padding:12px;background:#f0f9ff;border-radius:10px;font-size:12px;color:#0369a1;">
             <b>Demo Credentials:</b><br>
             Admin: admin@myplacement.com / admin123<br>
             Employer: hr@techcorp.com / company123<br>
@@ -182,7 +171,7 @@ function renderLogin(role = null) {
         <div id="forgot-password-form" style="display:none;">
           <div style="text-align:center;margin-bottom:16px;">
             <div style="font-size:36px;margin-bottom:8px;">🔑</div>
-            <h3 style="font-size:16px;font-weight:700;color:#7a1a00;margin:0;">Reset Password</h3>
+            <h3 style="font-size:16px;font-weight:700;color:#1e3a5f;margin:0;">Reset Password</h3>
             <p style="font-size:13px;color:#64748b;margin-top:4px;">Enter your email to get a reset token</p>
           </div>
           <div class="form-group">
@@ -211,7 +200,7 @@ function renderLogin(role = null) {
             </button>
           </div>
           <div style="text-align:center;margin-top:12px;">
-            <a href="#" onclick="switchAuthTab('login');document.getElementById('forgot-password-form').style.display='none';document.getElementById('login-form').style.display='block';return false;" style="font-size:13px;color:#e65c00;text-decoration:none;">
+            <a href="#" onclick="switchAuthTab('login');document.getElementById('forgot-password-form').style.display='none';document.getElementById('login-form').style.display='block';return false;" style="font-size:13px;color:#2563eb;text-decoration:none;">
               <i class="fas fa-arrow-left"></i> Back to Login
             </a>
           </div>
@@ -252,9 +241,9 @@ function switchAuthTab(tab) {
   document.getElementById('login-form').style.display = isLogin ? 'block' : 'none';
   document.getElementById('forgot-password-form').style.display = 'none';
   document.getElementById('register-form').style.display = isLogin ? 'none' : 'block';
-  document.getElementById('tab-login').style.background = isLogin ? '#e65c00' : 'transparent';
+  document.getElementById('tab-login').style.background = isLogin ? '#2563eb' : 'transparent';
   document.getElementById('tab-login').style.color = isLogin ? 'white' : '#64748b';
-  document.getElementById('tab-register').style.background = !isLogin ? '#e65c00' : 'transparent';
+  document.getElementById('tab-register').style.background = !isLogin ? '#2563eb' : 'transparent';
   document.getElementById('tab-register').style.color = !isLogin ? 'white' : '#64748b';
 }
 
@@ -464,8 +453,7 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
       <aside class="sidebar" id="main-sidebar">
         <div class="sidebar-logo">
           <div class="sidebar-logo-inner">
-            <img src="/static/shivsena_logo.png" alt="SS" class="party-logo-sm" onerror="this.style.display='none'">
-            <h2>Shiv Sena Job Portal</h2>
+            <h2><i class="fas fa-briefcase"></i> My Placement</h2>
             <p>${roleLabels[role] || role} Panel</p>
           </div>
           <button class="sidebar-close-btn" onclick="closeSidebar()" title="Close menu">
@@ -499,7 +487,7 @@ function renderLayout(role, activeSection, contentHtml, pageTitle) {
           <h1 class="page-title" id="page-title">${pageTitle}</h1>
           <div class="header-right">
             <span class="header-email">${currentUser?.email || ''}</span>
-            <div class="sidebar-avatar header-avatar-circle" style="width:34px;height:34px;background:linear-gradient(135deg,#e65c00,#ff9a00);flex-shrink:0;">${initials}</div>
+            <div class="sidebar-avatar header-avatar-circle" style="width:34px;height:34px;background:linear-gradient(135deg,#2563eb,#7c3aed);flex-shrink:0;">${initials}</div>
             <!-- Mobile logout button — always visible on small screens -->
             <button class="header-logout-btn" onclick="doLogout()" title="Logout">
               <i class="fas fa-sign-out-alt"></i> Logout
@@ -584,16 +572,16 @@ async function loadAdminDashboard() {
   const content = document.getElementById('content-area');
   content.innerHTML = `
     <div class="stats-grid">
-      <div class="stat-card" style="border-left-color:#e65c00;">
+      <div class="stat-card" style="border-left-color:#2563eb;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${s.totalUsers||0}</div><div class="stat-label">Total Users</div></div>
-          <div class="stat-icon" style="background:#fff3e0;color:#e65c00;"><i class="fas fa-users"></i></div>
+          <div class="stat-icon" style="background:#dbeafe;color:#2563eb;"><i class="fas fa-users"></i></div>
         </div>
       </div>
-      <div class="stat-card" style="border-left-color:#b22222;">
+      <div class="stat-card" style="border-left-color:#7c3aed;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${s.totalCompanies||0}</div><div class="stat-label">Companies</div></div>
-          <div class="stat-icon" style="background:#fff3e0;color:#b22222;"><i class="fas fa-building"></i></div>
+          <div class="stat-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-building"></i></div>
         </div>
       </div>
       <div class="stat-card" style="border-left-color:#16a34a;">
@@ -648,7 +636,7 @@ async function loadAdminCompanies() {
   const content = document.getElementById('content-area');
   content.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-      <h2 style="font-size:18px;font-weight:700;color:#7a1a00;margin:0;"><i class="fas fa-building"></i> All Companies (${(res.companies||[]).length})</h2>
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0;"><i class="fas fa-building"></i> All Companies (${(res.companies||[]).length})</h2>
       <button class="btn btn-primary" onclick="showCreateCompanyModal()"><i class="fas fa-plus"></i> Create New Company</button>
     </div>
     <div class="card" style="padding:0;overflow:hidden;">
@@ -803,7 +791,7 @@ async function loadAdminEmployees(q = '', city = '', flag = '') {
   const content = document.getElementById('content-area');
   content.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-      <h2 style="font-size:18px;font-weight:700;color:#7a1a00;margin:0;"><i class="fas fa-users"></i> Employees (${_adminEmpData.length})</h2>
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0;"><i class="fas fa-users"></i> Employees (${_adminEmpData.length})</h2>
       <button class="btn btn-outline btn-sm" onclick="downloadEmployeesCSV()"><i class="fas fa-download"></i> Download CSV</button>
     </div>
     <div class="card" style="margin-bottom:16px;padding:14px;">
@@ -838,7 +826,7 @@ async function loadAdminEmployees(q = '', city = '', flag = '') {
                   <div style="font-size:12px;color:#94a3b8;">${e.current_job_title||'-'}</div>
                 </td>
                 <td data-label="Current Company">
-                  ${e.hrms_company ? `<span style="font-weight:600;color:#e65c00;">${e.hrms_company}</span>` : (e.current_company ? `<span style="color:#64748b;">${e.current_company}</span>` : '<span style="color:#94a3b8;">-</span>')}
+                  ${e.hrms_company ? `<span style="font-weight:600;color:#2563eb;">${e.hrms_company}</span>` : (e.current_company ? `<span style="color:#64748b;">${e.current_company}</span>` : '<span style="color:#94a3b8;">-</span>')}
                 </td>
                 <td data-label="Monthly Salary">
                   ${e.hrms_salary ? `<span style="font-weight:700;color:#16a34a;">₹${Number(e.hrms_salary).toLocaleString('en-IN')}/mo</span>` : (e.expected_salary ? `<span style="color:#94a3b8;font-size:12px;">Exp: ₹${Number(e.expected_salary).toLocaleString('en-IN')}</span>` : '<span style="color:#94a3b8;">-</span>')}
@@ -1015,7 +1003,7 @@ async function loadAdminReviewRequests() {
   const content = document.getElementById('content-area');
   content.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-      <h2 style="font-size:18px;font-weight:700;color:#7a1a00;margin:0;"><i class="fas fa-trash-alt"></i> Review Removal Requests</h2>
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0;"><i class="fas fa-trash-alt"></i> Review Removal Requests</h2>
       ${pending.length ? '<span class="badge badge-danger" style="font-size:13px;padding:6px 12px;">'+pending.length+' Pending</span>' : ''}
     </div>
     <div class="tabs">
@@ -1055,7 +1043,7 @@ function renderRemovalRequestCard(r) {
       <div style="margin-bottom:12px;">
         <div style="font-size:12px;color:#64748b;font-weight:600;">Employee's Reason:</div>
         <div style="font-size:13px;color:#374151;">${r.reason}</div>
-        ${r.payment_ref ? '<div style="font-size:12px;color:#e65c00;margin-top:4px;"><i class="fas fa-credit-card"></i> Payment ref: <b>'+r.payment_ref+'</b></div>' : '<div style="font-size:12px;color:#f59e0b;margin-top:4px;"><i class="fas fa-exclamation-circle"></i> No payment reference provided</div>'}
+        ${r.payment_ref ? '<div style="font-size:12px;color:#2563eb;margin-top:4px;"><i class="fas fa-credit-card"></i> Payment ref: <b>'+r.payment_ref+'</b></div>' : '<div style="font-size:12px;color:#f59e0b;margin-top:4px;"><i class="fas fa-exclamation-circle"></i> No payment reference provided</div>'}
       </div>
       <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Requested: ${timeAgo(r.created_at)}</div>
       ${r.status === 'pending' ? `
@@ -1114,7 +1102,7 @@ function renderAdminReviewCard(r) {
         <div>
           <span style="font-weight:700;">${r.employee_name}</span>
           <span style="color:#64748b;font-size:13px;"> reviewed by </span>
-          <span style="font-weight:600;color:#e65c00;">${r.company_name}</span>
+          <span style="font-weight:600;color:#2563eb;">${r.company_name}</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <div class="stars">${stars(r.rating)}</div>
@@ -1240,16 +1228,16 @@ async function loadEmployerHome() {
   const content = document.getElementById('content-area');
   content.innerHTML = `
     <div class="stats-grid">
-      <div class="stat-card" style="border-left-color:#e65c00;">
+      <div class="stat-card" style="border-left-color:#2563eb;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${s.totalJobs||0}</div><div class="stat-label">Active Jobs</div></div>
-          <div class="stat-icon" style="background:#fff3e0;color:#e65c00;"><i class="fas fa-briefcase"></i></div>
+          <div class="stat-icon" style="background:#dbeafe;color:#2563eb;"><i class="fas fa-briefcase"></i></div>
         </div>
       </div>
-      <div class="stat-card" style="border-left-color:#b22222;">
+      <div class="stat-card" style="border-left-color:#7c3aed;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${s.totalApplications||0}</div><div class="stat-label">Total Applications</div></div>
-          <div class="stat-icon" style="background:#fff3e0;color:#b22222;"><i class="fas fa-file-alt"></i></div>
+          <div class="stat-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-file-alt"></i></div>
         </div>
       </div>
       <div class="stat-card" style="border-left-color:#d97706;">
@@ -1268,7 +1256,7 @@ async function loadEmployerHome() {
     <div class="grid-2">
       <div class="card">
         <div class="card-title" style="justify-content:space-between;">
-          <span><i class="fas fa-briefcase" style="color:#e65c00"></i> Recent Job Posts</span>
+          <span><i class="fas fa-briefcase" style="color:#2563eb"></i> Recent Job Posts</span>
           <button class="btn btn-primary btn-sm" onclick="loadEmployerSection('post-job')"><i class="fas fa-plus"></i> Post Job</button>
         </div>
         ${recentJobs.map(j => `
@@ -1302,7 +1290,7 @@ function renderPostJobForm(job = null) {
   const skillsArr = job ? JSON.parse(job.skills_required || '[]') : [];
   content.innerHTML = `
     <div class="card">
-      <div class="card-title"><i class="fas fa-${isEdit?'edit':'plus-circle'}" style="color:#e65c00"></i> ${isEdit?'Edit Job':'Post New Job'}</div>
+      <div class="card-title"><i class="fas fa-${isEdit?'edit':'plus-circle'}" style="color:#2563eb"></i> ${isEdit?'Edit Job':'Post New Job'}</div>
       <div class="grid-2">
         <div class="form-group">
           <label class="form-label">Job Title *</label>
@@ -1529,10 +1517,10 @@ async function viewJobApplications(jobId, jobTitle) {
         <div style="display:flex;justify-content:space-between;align-items:start;gap:16px;">
           <div style="flex:1;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-              <div class="profile-avatar" style="width:44px;height:44px;font-size:16px;background:linear-gradient(135deg,#e65c00,#ff9a00);">${(a.full_name||'?')[0].toUpperCase()}</div>
+              <div class="profile-avatar" style="width:44px;height:44px;font-size:16px;background:linear-gradient(135deg,#2563eb,#7c3aed);">${(a.full_name||'?')[0].toUpperCase()}</div>
               <div>
                 <div style="font-weight:700;font-size:16px;">${a.full_name}</div>
-                <div style="color:#e65c00;font-size:13px;">${a.current_job_title||'Job Seeker'} • ${a.total_experience_years||0} yrs exp</div>
+                <div style="color:#2563eb;font-size:13px;">${a.current_job_title||'Job Seeker'} • ${a.total_experience_years||0} yrs exp</div>
               </div>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
@@ -1762,7 +1750,7 @@ function renderHRMSEmployees() {
   if (!el) return;
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-      <h3 style="margin:0;font-size:16px;font-weight:700;color:#7a1a00;">Team Members (${hrmsEmployees.length})</h3>
+      <h3 style="margin:0;font-size:16px;font-weight:700;color:#1e3a5f;">Team Members (${hrmsEmployees.length})</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary btn-sm" onclick="showAddHRMSEmployeeModal()"><i class="fas fa-user-plus"></i> Add Employee</button>
         <button class="btn btn-outline btn-sm" onclick="showBulkImportModal()"><i class="fas fa-file-upload"></i> Bulk Import</button>
@@ -1771,12 +1759,12 @@ function renderHRMSEmployees() {
     ${hrmsEmployees.length ? hrmsEmployees.map(e => `
       <div class="card" style="margin-bottom:12px;padding:16px;${!e.is_active?'opacity:0.65;border-left:3px solid #f59e0b;':''}">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-          <div class="sidebar-avatar" style="background:${e.is_active?'linear-gradient(135deg,#e65c00,#ff9a00)':'#94a3b8'};width:46px;height:46px;font-size:17px;flex-shrink:0;">
+          <div class="sidebar-avatar" style="background:${e.is_active?'linear-gradient(135deg,#2563eb,#7c3aed)':'#94a3b8'};width:46px;height:46px;font-size:17px;flex-shrink:0;">
             ${(e.full_name||'?')[0].toUpperCase()}
           </div>
           <div style="flex:1;min-width:0;">
             <div style="font-weight:700;font-size:15px;">${e.full_name||'-'} ${!e.is_active?'<span class="badge badge-warning" style="font-size:10px;">Discontinued</span>':''}</div>
-            <div style="font-size:13px;color:#e65c00;">${e.designation||e.current_job_title||'Employee'}</div>
+            <div style="font-size:13px;color:#2563eb;">${e.designation||e.current_job_title||'Employee'}</div>
             <div style="font-size:12px;color:#64748b;">${e.department||''} ${e.email ? '· '+e.email : ''} ${e.employee_code ? '· #'+e.employee_code : ''}</div>
           </div>
           <div style="text-align:right;flex-shrink:0;">
@@ -1806,9 +1794,9 @@ function renderHRMSEmployees() {
 function showAddHRMSEmployeeModal() {
   const today = new Date().toISOString().split('T')[0];
   createModal('add-hrms-emp', 'Add Employee to HRMS', `
-    <div style="background:#fff8f0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#c44f00;border-left:3px solid #e65c00;">
+    <div style="background:#f0f9ff;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#1e40af;border-left:3px solid #2563eb;">
       <i class="fas fa-info-circle"></i> Enter employee details directly — no portal registration required.
-      <a href="#" onclick="showBulkImportModal();return false;" style="color:#e65c00;font-weight:600;margin-left:8px;"><i class="fas fa-file-upload"></i> Bulk Import</a>
+      <a href="#" onclick="showBulkImportModal();return false;" style="color:#2563eb;font-weight:600;margin-left:8px;"><i class="fas fa-file-upload"></i> Bulk Import</a>
     </div>
     <div class="grid-2">
       <div class="form-group" style="grid-column:1/-1">
@@ -1974,7 +1962,7 @@ async function submitBulkImport() {
 
   const statusEl = document.getElementById('bulk-status');
   statusEl.style.display = 'block';
-  statusEl.innerHTML = '<div style="color:#e65c00;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Importing '+employees.length+' employees...</div>';
+  statusEl.innerHTML = '<div style="color:#2563eb;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Importing '+employees.length+' employees...</div>';
 
   const res = await api('POST', '/company/hrms/employees/bulk', { employees });
   if (res.success) {
@@ -2141,7 +2129,7 @@ async function renderHRMSAttendance() {
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
           <button class="btn btn-sm btn-outline" onclick="hrmsChangeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
-          <span style="font-size:16px;font-weight:700;color:#7a1a00;">${MONTHS[hrmsAttendanceMonth-1]} ${hrmsAttendanceYear}</span>
+          <span style="font-size:16px;font-weight:700;color:#1e3a5f;">${MONTHS[hrmsAttendanceMonth-1]} ${hrmsAttendanceYear}</span>
           <button class="btn btn-sm btn-outline" onclick="hrmsChangeMonth(1)"><i class="fas fa-chevron-right"></i></button>
         </div>
         <button class="btn btn-primary btn-sm" onclick="showMarkAttendanceModal()"><i class="fas fa-calendar-plus"></i> Mark Attendance</button>
@@ -2153,8 +2141,8 @@ async function renderHRMSAttendance() {
         <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:3px;margin-right:4px;"></span>Present</span>
         <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#dc2626;border-radius:3px;margin-right:4px;"></span>Absent</span>
         <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:3px;margin-right:4px;"></span>Half Day</span>
-        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#e65c00;border-radius:3px;margin-right:4px;"></span>WFH</span>
-        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#b22222;border-radius:3px;margin-right:4px;"></span>Leave</span>
+        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#2563eb;border-radius:3px;margin-right:4px;"></span>WFH</span>
+        <span style="font-size:13px;"><span style="display:inline-block;width:12px;height:12px;background:#7c3aed;border-radius:3px;margin-right:4px;"></span>Leave</span>
       </div>
     </div>
 
@@ -2189,9 +2177,9 @@ function attendanceBadge(status) {
     present: ['#dcfce7','#16a34a','Present'],
     absent: ['#fee2e2','#dc2626','Absent'],
     half_day: ['#fef3c7','#d97706','Half Day'],
-    leave: ['#fef3c7','#d97706','Leave'],
+    leave: ['#ede9fe','#7c3aed','Leave'],
     holiday: ['#f1f5f9','#64748b','Holiday'],
-    wfh: ['#dbeafe','#e65c00','WFH'],
+    wfh: ['#dbeafe','#2563eb','WFH'],
   };
   const [bg, color, label] = cfg[status] || ['#f1f5f9','#374151', status];
   return `<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">${label}</span>`;
@@ -2271,7 +2259,7 @@ async function renderHRMSSalary() {
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
           <button class="btn btn-sm btn-outline" onclick="hrmsSalaryChangeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
-          <span style="font-size:16px;font-weight:700;color:#7a1a00;">${MONTHS[hrmsSalaryMonth-1]} ${hrmsSalaryYear}</span>
+          <span style="font-size:16px;font-weight:700;color:#1e3a5f;">${MONTHS[hrmsSalaryMonth-1]} ${hrmsSalaryYear}</span>
           <button class="btn btn-sm btn-outline" onclick="hrmsSalaryChangeMonth(1)"><i class="fas fa-chevron-right"></i></button>
         </div>
         <button class="btn btn-primary btn-sm" onclick="showGenerateSalaryModal()"><i class="fas fa-file-invoice-dollar"></i> Generate Slip</button>
@@ -2283,7 +2271,7 @@ async function renderHRMSSalary() {
         <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;">
           <div>
             <div style="font-weight:700;font-size:15px;">${s.full_name}</div>
-            <div style="font-size:13px;color:#e65c00;">${s.designation||s.current_job_title||''}</div>
+            <div style="font-size:13px;color:#2563eb;">${s.designation||s.current_job_title||''}</div>
             <div style="font-size:12px;color:#64748b;">${s.department||''} ${s.email ? '· '+s.email : ''}</div>
           </div>
           <div style="text-align:right;">
@@ -2430,7 +2418,7 @@ function downloadSalarySlipPDF(s) {
   @page { margin: 15mm 20mm; size: A4; }
   * { box-sizing: border-box; margin:0; padding:0; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: white; font-size: 13px; }
-  .header { background: linear-gradient(135deg, #7a1a00, #e65c00); color: white; padding: 24px 28px; display:flex; justify-content:space-between; align-items:center; }
+  .header { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; padding: 24px 28px; display:flex; justify-content:space-between; align-items:center; }
   .company-name { font-size: 22px; font-weight: 800; }
   .slip-title { font-size: 14px; opacity:0.85; }
   .slip-period { font-size:16px; font-weight:700; }
@@ -2438,7 +2426,7 @@ function downloadSalarySlipPDF(s) {
   .emp-box { background:#f8fafc; border-radius:10px; padding:16px; margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .emp-row { font-size:13px; } .emp-row span:first-child { color:#64748b; font-size:11px; display:block; font-weight:600; text-transform:uppercase; }
   .pay-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
-  .pay-section h4 { font-size:13px; font-weight:700; color:#7a1a00; border-bottom:2px solid #e65c00; padding-bottom:6px; margin-bottom:10px; }
+  .pay-section h4 { font-size:13px; font-weight:700; color:#1e3a5f; border-bottom:2px solid #2563eb; padding-bottom:6px; margin-bottom:10px; }
   .pay-row { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px solid #f1f5f9; }
   .pay-row.total { font-weight:700; border-top:2px solid #e2e8f0; padding-top:8px; margin-top:4px; }
   .net-box { background:linear-gradient(135deg,#16a34a,#22c55e); color:white; border-radius:10px; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; }
@@ -2494,7 +2482,7 @@ function downloadSalarySlipPDF(s) {
       <div class="net-amount">₹${Number(s.net_salary).toLocaleString('en-IN')}</div>
     </div>
 
-    ${s.notes ? `<div style="margin-top:16px;padding:10px 14px;background:#fff8f0;border-radius:8px;border-left:3px solid #e65c00;font-size:13px;color:#374151;"><b>Notes:</b> ${s.notes}</div>` : ''}
+    ${s.notes ? `<div style="margin-top:16px;padding:10px 14px;background:#f0f9ff;border-radius:8px;border-left:3px solid #2563eb;font-size:13px;color:#374151;"><b>Notes:</b> ${s.notes}</div>` : ''}
 
     <div class="footer">
       <div>This is a computer generated salary slip and does not require a signature.</div>
@@ -2522,7 +2510,7 @@ async function loadEmployerReviews() {
     ${(res.reviews||[]).map(r => `
       <div class="review-card ${r.is_flagged?'review-flag':''}">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-          <div class="profile-avatar" style="width:40px;height:40px;font-size:16px;background:linear-gradient(135deg,#e65c00,#ff9a00);">${(r.full_name||'?')[0].toUpperCase()}</div>
+          <div class="profile-avatar" style="width:40px;height:40px;font-size:16px;background:linear-gradient(135deg,#2563eb,#7c3aed);">${(r.full_name||'?')[0].toUpperCase()}</div>
           <div style="flex:1;">
             <div style="font-weight:700;">${r.full_name}</div>
             <div style="font-size:13px;color:#64748b;">${r.current_job_title||'Employee'}</div>
@@ -2630,10 +2618,10 @@ async function loadEmployeeDashboard() {
   const profilePercent = Math.round((profileComplete / 4) * 100);
   content.innerHTML = `
     <div class="stats-grid">
-      <div class="stat-card" style="border-left-color:#e65c00;">
+      <div class="stat-card" style="border-left-color:#2563eb;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${applications.length}</div><div class="stat-label">Applications</div></div>
-          <div class="stat-icon" style="background:#fff3e0;color:#e65c00;"><i class="fas fa-file-alt"></i></div>
+          <div class="stat-icon" style="background:#dbeafe;color:#2563eb;"><i class="fas fa-file-alt"></i></div>
         </div>
       </div>
       <div class="stat-card" style="border-left-color:#16a34a;">
@@ -2642,10 +2630,10 @@ async function loadEmployeeDashboard() {
           <div class="stat-icon" style="background:#dcfce7;color:#16a34a;"><i class="fas fa-star"></i></div>
         </div>
       </div>
-      <div class="stat-card" style="border-left-color:#b22222;">
+      <div class="stat-card" style="border-left-color:#7c3aed;">
         <div style="display:flex;justify-content:space-between;align-items:start;">
           <div><div class="stat-number">${(profileRes.savedJobs||[]).length}</div><div class="stat-label">Saved Jobs</div></div>
-          <div class="stat-icon" style="background:#fff3e0;color:#b22222;"><i class="fas fa-bookmark"></i></div>
+          <div class="stat-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-bookmark"></i></div>
         </div>
       </div>
       <div class="stat-card" style="border-left-color:#d97706;">
@@ -2658,9 +2646,9 @@ async function loadEmployeeDashboard() {
     <div class="grid-2">
       <div>
         <div class="card" style="margin-bottom:16px;">
-          <div class="card-title"><i class="fas fa-user-circle" style="color:#e65c00"></i> Profile Summary</div>
+          <div class="card-title"><i class="fas fa-user-circle" style="color:#2563eb"></i> Profile Summary</div>
           <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-            <div class="profile-avatar" style="width:56px;height:56px;font-size:22px;background:linear-gradient(135deg,#e65c00,#ff9a00);">${(p.full_name||'?')[0].toUpperCase()}</div>
+            <div class="profile-avatar" style="width:56px;height:56px;font-size:22px;background:linear-gradient(135deg,#2563eb,#7c3aed);">${(p.full_name||'?')[0].toUpperCase()}</div>
             <div>
               <div style="font-size:18px;font-weight:700;">${p.full_name||'Complete your profile'}</div>
               <div style="color:#64748b;">${p.current_job_title||'Job Seeker'} ${p.city?'• '+p.city:''}</div>
@@ -2676,7 +2664,7 @@ async function loadEmployeeDashboard() {
           <button class="btn btn-primary btn-sm" onclick="loadEmployeeSection('my-profile')"><i class="fas fa-edit"></i> Update Profile</button>
         </div>
         <div class="card">
-          <div class="card-title"><i class="fas fa-file-alt" style="color:#b22222"></i> Recent Applications</div>
+          <div class="card-title"><i class="fas fa-file-alt" style="color:#7c3aed"></i> Recent Applications</div>
           ${applications.slice(0,3).map(a => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;">
               <div>
@@ -2824,7 +2812,7 @@ async function showJobDetail(jobId) {
   const j = res.job;
   const skills = JSON.parse(j.skills_required || '[]');
   createModal('job-detail-modal', j.title, `
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding:16px;background:linear-gradient(135deg,#7a1a00,#e65c00);border-radius:12px;color:white;">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding:16px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:12px;color:white;">
       <div class="company-logo" style="width:56px;height:56px;font-size:22px;">${(j.company_name||'C')[0].toUpperCase()}</div>
       <div style="flex:1;">
         <div style="font-size:20px;font-weight:800;">${j.title}</div>
@@ -2839,9 +2827,9 @@ async function showJobDetail(jobId) {
     <div class="grid-2" style="margin-bottom:16px;">
       <div>${jobTypeBadge(j.job_type)}</div>
       <div>${workModeBadge(j.work_mode)}</div>
-      <div><i class="fas fa-map-marker-alt" style="color:#e65c00"></i> ${j.city||'Any'}, ${j.state||''}</div>
+      <div><i class="fas fa-map-marker-alt" style="color:#2563eb"></i> ${j.city||'Any'}, ${j.state||''}</div>
       <div><i class="fas fa-money-bill-wave" style="color:#16a34a"></i> ${formatSalary(j.salary_min,j.salary_max)}</div>
-      <div><i class="fas fa-briefcase" style="color:#b22222"></i> ${j.experience_min||0}-${j.experience_max||'N'} years exp</div>
+      <div><i class="fas fa-briefcase" style="color:#7c3aed"></i> ${j.experience_min||0}-${j.experience_max||'N'} years exp</div>
       <div><i class="fas fa-users" style="color:#d97706"></i> ${j.no_of_openings||1} opening(s)</div>
     </div>
     <div style="margin-bottom:16px;"><b>Required Skills:</b><br><div style="margin-top:8px;">${renderSkillTags(skills)}</div></div>
@@ -2906,7 +2894,7 @@ async function loadMyApplications() {
               <div class="company-logo">${(a.company_name||'C')[0].toUpperCase()}</div>
               <div>
                 <div style="font-weight:700;font-size:16px;">${a.title}</div>
-                <div style="color:#e65c00;font-size:14px;">${a.company_name}</div>
+                <div style="color:#2563eb;font-size:14px;">${a.company_name}</div>
               </div>
             </div>
             <div class="job-meta">
@@ -2973,7 +2961,7 @@ async function loadMyReviews() {
 
   content.innerHTML = `
     <div style="margin-bottom:16px;">
-      <h2 style="font-size:18px;font-weight:700;color:#7a1a00;margin:0 0 6px;"><i class="fas fa-star"></i> My Reviews (${reviewsList.length})</h2>
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin:0 0 6px;"><i class="fas fa-star"></i> My Reviews (${reviewsList.length})</h2>
       <p style="font-size:13px;color:#64748b;margin:0;">Reviews given by employers. If you believe a review is unfair, you can request its removal.</p>
     </div>
     ${reviewsList.length ? reviewsList.map(r => `
@@ -3056,7 +3044,7 @@ async function loadMyProfile() {
     </div>
     <div id="profile-tab-basic">
       <div class="card">
-        <div class="card-title"><i class="fas fa-user" style="color:#e65c00"></i> Personal Information</div>
+        <div class="card-title"><i class="fas fa-user" style="color:#2563eb"></i> Personal Information</div>
         <div class="grid-2">
           <div class="form-group"><label class="form-label">Full Name *</label><input type="text" id="p-name" class="form-control" value="${p.full_name||''}"></div>
           <div class="form-group"><label class="form-label">Phone</label><input type="tel" id="p-phone" class="form-control" value="${p.phone||''}"></div>
@@ -3089,15 +3077,15 @@ async function loadMyProfile() {
         <div class="form-group"><label class="form-label">Bio / Summary</label>
           <div style="position:relative;">
             <textarea id="p-bio" class="form-control" rows="4" placeholder="Tell employers about yourself...">${p.bio||''}</textarea>
-            <button type="button" class="btn btn-outline btn-sm" id="ai-gen-btn" onclick="generateAISummary()" style="position:absolute;top:8px;right:8px;font-size:11px;padding:4px 8px;background:linear-gradient(135deg,#7a1a00,#e65c00);color:white;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <button type="button" class="btn btn-outline btn-sm" id="ai-gen-btn" onclick="generateAISummary()" style="position:absolute;top:8px;right:8px;font-size:11px;padding:4px 8px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px;">
               <i class="fas fa-magic"></i> AI Generate
             </button>
           </div>
-          <div id="ai-summary-status" style="font-size:12px;color:#b22222;margin-top:4px;display:none;"></div>
+          <div id="ai-summary-status" style="font-size:12px;color:#7c3aed;margin-top:4px;display:none;"></div>
         </div>
         <div class="btn-row" style="margin-top:4px;">
           <button class="btn btn-primary" onclick="saveBasicProfile()"><i class="fas fa-save"></i> Save Profile</button>
-          <button class="btn btn-outline" onclick="generateAISummary()" style="background:linear-gradient(135deg,#7a1a00,#e65c00);color:white;border:none;">
+          <button class="btn btn-outline" onclick="generateAISummary()" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:white;border:none;">
             <i class="fas fa-magic"></i> Auto-Generate Summary
           </button>
           <button class="btn btn-outline" onclick="downloadResumeAsPDF()" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;">
@@ -3108,7 +3096,7 @@ async function loadMyProfile() {
     </div>
     <div id="profile-tab-skills" style="display:none;">
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-title"><i class="fas fa-code" style="color:#b22222"></i> Skills (Used for Job Matching)</div>
+        <div class="card-title"><i class="fas fa-code" style="color:#7c3aed"></i> Skills (Used for Job Matching)</div>
         <div class="form-group">
           <input type="text" id="skill-input-profile" class="form-control" placeholder="Type skill and press Enter (e.g. React, Python, Node.js)..." onkeydown="addProfileSkill(event)">
         </div>
@@ -3326,26 +3314,26 @@ async function downloadResumeAsPDF() {
   const portfolio = p.portfolio_url || '';
 
   const sectionTitle = (icon, text) =>
-    `<div style="display:flex;align-items:center;gap:8px;margin:22px 0 10px;border-bottom:2px solid #e65c00;padding-bottom:5px;">
-       <span style="color:#e65c00;font-size:16px;">${icon}</span>
-       <span style="font-size:15px;font-weight:700;color:#7a1a00;letter-spacing:0.5px;">${text}</span>
+    `<div style="display:flex;align-items:center;gap:8px;margin:22px 0 10px;border-bottom:2px solid #2563eb;padding-bottom:5px;">
+       <span style="color:#2563eb;font-size:16px;">${icon}</span>
+       <span style="font-size:15px;font-weight:700;color:#1e3a5f;letter-spacing:0.5px;">${text}</span>
      </div>`;
 
   const contactLine = (icon, val, href = '') => val
     ? `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:16px;font-size:12px;color:#374151;">
-         <span style="color:#e65c00;">${icon}</span>
+         <span style="color:#2563eb;">${icon}</span>
          ${href ? `<a href="${href}" style="color:#374151;text-decoration:none;">${val}</a>` : val}
        </span>`
     : '';
 
   const skillsHtml = skills.length
-    ? skills.map(s => `<span style="display:inline-block;background:#fff3e0;color:#c44f00;border-radius:20px;padding:3px 12px;margin:3px;font-size:12px;font-weight:500;">${s}</span>`).join('')
+    ? skills.map(s => `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:20px;padding:3px 12px;margin:3px;font-size:12px;font-weight:500;">${s}</span>`).join('')
     : '<span style="color:#94a3b8;font-size:13px;">No skills added</span>';
 
   const eduHtml = education.length
     ? education.map(e => `
         <div style="margin-bottom:10px;">
-          <div style="font-weight:600;font-size:13px;color:#7a1a00;">${e.degree || ''}</div>
+          <div style="font-weight:600;font-size:13px;color:#1e3a5f;">${e.degree || ''}</div>
           <div style="font-size:12px;color:#374151;">${e.institution || ''}</div>
           <div style="font-size:11px;color:#64748b;">${[e.year, e.grade ? 'Grade: '+e.grade : ''].filter(Boolean).join(' · ')}</div>
         </div>`).join('')
@@ -3356,7 +3344,7 @@ async function downloadResumeAsPDF() {
         <div style="margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:start;">
             <div>
-              <div style="font-weight:600;font-size:13px;color:#7a1a00;">${w.title || w.role || 'Role'}</div>
+              <div style="font-weight:600;font-size:13px;color:#1e3a5f;">${w.title || w.role || 'Role'}</div>
               <div style="font-size:12px;color:#374151;">${w.company || ''} ${w.location ? '· '+w.location : ''}</div>
             </div>
             <div style="font-size:11px;color:#64748b;white-space:nowrap;">${w.duration || w.years || ''}</div>
@@ -3374,9 +3362,9 @@ async function downloadResumeAsPDF() {
     : '';
 
   const linksHtml = [
-    linkedin ? `<div style="font-size:12px;margin-bottom:3px;">🔗 LinkedIn: <a href="${linkedin}" style="color:#e65c00;">${linkedin}</a></div>` : '',
-    github ? `<div style="font-size:12px;margin-bottom:3px;">💻 GitHub: <a href="${github}" style="color:#e65c00;">${github}</a></div>` : '',
-    portfolio ? `<div style="font-size:12px;margin-bottom:3px;">🌐 Portfolio: <a href="${portfolio}" style="color:#e65c00;">${portfolio}</a></div>` : '',
+    linkedin ? `<div style="font-size:12px;margin-bottom:3px;">🔗 LinkedIn: <a href="${linkedin}" style="color:#2563eb;">${linkedin}</a></div>` : '',
+    github ? `<div style="font-size:12px;margin-bottom:3px;">💻 GitHub: <a href="${github}" style="color:#2563eb;">${github}</a></div>` : '',
+    portfolio ? `<div style="font-size:12px;margin-bottom:3px;">🌐 Portfolio: <a href="${portfolio}" style="color:#2563eb;">${portfolio}</a></div>` : '',
   ].filter(Boolean).join('');
 
   const salaryLine = p.expected_salary
@@ -3391,7 +3379,7 @@ async function downloadResumeAsPDF() {
     @page { margin: 15mm 18mm; size: A4; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: white; font-size: 13px; line-height: 1.6; }
-    .header { background: linear-gradient(135deg, #7a1a00 0%, #e65c00 100%); color: white; padding: 28px 32px 22px; }
+    .header { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: white; padding: 28px 32px 22px; }
     .name { font-size: 28px; font-weight: 800; letter-spacing: 0.5px; }
     .job-title { font-size: 15px; opacity: 0.9; margin-top: 4px; font-weight: 400; }
     .contact-bar { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 4px; }
@@ -3400,7 +3388,7 @@ async function downloadResumeAsPDF() {
     .two-col { display: grid; grid-template-columns: 1fr 260px; gap: 28px; margin-top: 6px; }
     .left { }
     .right { border-left: 1px solid #e2e8f0; padding-left: 20px; }
-    a { color: #e65c00; }
+    a { color: #2563eb; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
