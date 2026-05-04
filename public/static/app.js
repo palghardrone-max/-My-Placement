@@ -134,6 +134,17 @@ function renderLogin(role = null) {
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="auth-container">
+
+      <!-- Left: Shiv Sena Logo -->
+      <div class="auth-float-left">
+        <img src="/static/shivsena_logo.png" alt="Shiv Sena">
+      </div>
+
+      <!-- Right: Eknath Shinde Photo -->
+      <div class="auth-float-right">
+        <img src="/static/eknath_shinde.jpg" alt="Eknath Shinde">
+      </div>
+
       <div class="auth-card">
         <div class="auth-logo">
           <h1><i class="fas fa-briefcase" style="color:#2563eb"></i> My Placement</h1>
