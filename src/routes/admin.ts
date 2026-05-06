@@ -20,6 +20,15 @@ function getAuthUser(c: any) {
   return verifyToken(authHeader.replace('Bearer ', ''))
 }
 
+// Middleware: proper 401 if no token, 403 if wrong role
+admin.use('/*', async (c, next) => {
+  const authHeader = c.req.header('Authorization')
+  if (!authHeader) return c.json({ success: false, message: 'Authentication required' }, 401)
+  const user = verifyToken(authHeader.replace('Bearer ', ''))
+  if (!user || user.role !== 'super_admin') return c.json({ success: false, message: 'Admin access required' }, 403)
+  return next()
+})
+
 function requireAdmin(c: any) {
   const user = getAuthUser(c)
   if (!user || user.role !== 'super_admin') return null

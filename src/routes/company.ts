@@ -282,6 +282,94 @@ company.get('/stats', async (c) => {
   }
 })
 
+// Get all applications for this company (across all jobs)
+company.get('/applications', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    const { status, job_id, page = '1', limit = '20' } = c.req.query()
+    const pageNum = parseInt(page)
+    const limitNum = parseInt(limit)
+    const offset = (pageNum - 1) * limitNum
+
+    let query = `
+      SELECT ja.*, j.title as job_title, j.city as job_city,
+             ep.full_name, ep.phone, ep.city as emp_city, ep.state as emp_state,
+             ep.current_job_title, ep.total_experience_years, ep.expected_salary,
+             ep.skills, ep.resume_url, ep.profile_photo,
+             u.email,
+             (SELECT AVG(rating) FROM employee_reviews WHERE employee_id = ep.id) as avg_rating,
+             (SELECT COUNT(*) FROM employee_reviews WHERE employee_id = ep.id AND is_flagged = 1) as flag_count
+      FROM job_applications ja
+      JOIN jobs j ON ja.job_id = j.id
+      JOIN employee_profiles ep ON ja.employee_id = ep.id
+      JOIN users u ON ep.user_id = u.id
+      WHERE j.company_id = ?`
+
+    const params: any[] = [comp.id]
+    if (status) { query += ` AND ja.status = ?`; params.push(status) }
+    if (job_id) { query += ` AND ja.job_id = ?`; params.push(job_id) }
+
+    query += ` ORDER BY ja.match_score DESC, ja.applied_at DESC LIMIT ? OFFSET ?`
+    params.push(limitNum, offset)
+
+    const applications = await c.env.DB.prepare(query).bind(...params).all()
+
+    const countResult = await c.env.DB.prepare(`
+      SELECT COUNT(*) as total FROM job_applications ja
+      JOIN jobs j ON ja.job_id = j.id WHERE j.company_id = ?
+    `).bind(comp.id).first() as any
+
+    return c.json({
+      success: true,
+      applications: applications.results,
+      total: countResult?.total || 0,
+      page: pageNum,
+      totalPages: Math.ceil((countResult?.total || 0) / limitNum)
+    })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
+// Update application status (employer)
+company.put('/applications/:appId/status', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employer') return c.json({ success: false, message: 'Employer access required' }, 403)
+
+    const appId = c.req.param('appId')
+    const comp = await c.env.DB.prepare('SELECT id FROM companies WHERE user_id = ?').bind(user.userId).first() as any
+    if (!comp) return c.json({ success: false, message: 'Company not found' }, 404)
+
+    // Verify application belongs to this company
+    const app = await c.env.DB.prepare(`
+      SELECT ja.id FROM job_applications ja
+      JOIN jobs j ON ja.job_id = j.id
+      WHERE ja.id = ? AND j.company_id = ?
+    `).bind(appId, comp.id).first()
+    if (!app) return c.json({ success: false, message: 'Application not found' }, 404)
+
+    const { status, notes } = await c.req.json()
+    const validStatuses = ['applied', 'shortlisted', 'interviewed', 'selected', 'rejected']
+    if (!validStatuses.includes(status)) {
+      return c.json({ success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }, 400)
+    }
+
+    await c.env.DB.prepare(
+      'UPDATE job_applications SET status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).bind(status, notes || '', appId).run()
+
+    return c.json({ success: true, message: 'Application status updated' })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
 // =============================================
 // HRMS v2 - STANDALONE (no portal registration needed)
 // Uses hrms_staff, hrms_attendance, hrms_salary tables
