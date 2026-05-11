@@ -646,18 +646,18 @@ async function loadAdminCompanies() {
           <tbody>
             ${(res.companies||[]).map(c => `
               <tr>
-                <td>
+                <td data-label="Company">
                   <div style="font-weight:600;">${c.company_name}</div>
                   <div style="font-size:12px;color:#64748b;">${c.email}</div>
                 </td>
-                <td>${c.industry||'-'}</td>
-                <td>${[c.city,c.state].filter(Boolean).join(', ')||'-'}</td>
-                <td><span class="badge badge-primary">${c.active_jobs||0} active</span></td>
-                <td>
+                <td data-label="Industry">${c.industry||'-'}</td>
+                <td data-label="Location">${[c.city,c.state].filter(Boolean).join(', ')||'-'}</td>
+                <td data-label="Jobs"><span class="badge badge-primary">${c.active_jobs||0} active</span></td>
+                <td data-label="Status">
                   ${c.is_verified ? '<span class="badge badge-success"><i class="fas fa-check"></i> Verified</span>' : '<span class="badge badge-warning">Pending</span>'}
                   ${!c.is_active ? ' <span class="badge badge-danger">Disabled</span>' : ''}
                 </td>
-                <td>
+                <td data-label="Actions">
                   <div style="display:flex;gap:5px;flex-wrap:wrap;">
                     <button class="btn btn-sm ${c.is_verified?'btn-outline':'btn-success'}" onclick="adminVerifyCompany(${c.id},${c.is_verified?0:1})">
                       <i class="fas fa-${c.is_verified?'times':'check'}"></i> ${c.is_verified?'Unverify':'Verify'}
@@ -945,13 +945,13 @@ async function loadAdminJobs() {
           <tbody>
             ${(res.jobs||[]).map(j => `
               <tr>
-                <td style="font-weight:600;">${j.title}</td>
-                <td>${j.company_name}</td>
-                <td>${j.city||'-'}</td>
-                <td>${jobTypeBadge(j.job_type)}</td>
-                <td>${j.applications_count||0}</td>
-                <td>${j.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
-                <td>
+                <td data-label="Job Title" style="font-weight:600;">${j.title}</td>
+                <td data-label="Company">${j.company_name}</td>
+                <td data-label="Location">${j.city||'-'}</td>
+                <td data-label="Type">${jobTypeBadge(j.job_type)}</td>
+                <td data-label="Applications">${j.applications_count||0}</td>
+                <td data-label="Status">${j.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
+                <td data-label="Action">
                   <button class="btn btn-sm ${j.is_active?'btn-danger':'btn-success'}" onclick="adminToggleJob(${j.id})">
                     ${j.is_active?'Deactivate':'Activate'}
                   </button>
@@ -1160,11 +1160,11 @@ async function loadAdminUsers() {
           <tbody>
             ${(res.users||[]).map(u => `
               <tr>
-                <td style="font-weight:600;">${u.email}</td>
-                <td><span class="badge badge-primary">${u.role}</span></td>
-                <td style="font-size:13px;">${new Date(u.created_at).toLocaleDateString()}</td>
-                <td>${u.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
-                <td>
+                <td data-label="Email" style="font-weight:600;">${u.email}</td>
+                <td data-label="Role"><span class="badge badge-primary">${u.role}</span></td>
+                <td data-label="Joined" style="font-size:13px;">${new Date(u.created_at).toLocaleDateString()}</td>
+                <td data-label="Status">${u.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
+                <td data-label="Action">
                   <button class="btn btn-sm ${u.is_active?'btn-danger':'btn-success'}" onclick="adminToggleUser(${u.id})">
                     ${u.is_active?'Deactivate':'Activate'}
                   </button>
@@ -1291,7 +1291,7 @@ function renderPostJobForm(job = null) {
   content.innerHTML = `
     <div class="card">
       <div class="card-title"><i class="fas fa-${isEdit?'edit':'plus-circle'}" style="color:#2563eb"></i> ${isEdit?'Edit Job':'Post New Job'}</div>
-      <div class="grid-2">
+      <div class="post-job-grid">
         <div class="form-group">
           <label class="form-label">Job Title *</label>
           <input type="text" id="jb-title" class="form-control" placeholder="e.g. Senior React Developer" value="${job?.title||''}">
@@ -2154,12 +2154,12 @@ async function renderHRMSAttendance() {
             <tbody>
               ${records.map(r => `
                 <tr>
-                  <td style="font-weight:600;">${r.date}</td>
-                  <td>${r.full_name}<br><span style="font-size:11px;color:#64748b;">${r.current_job_title||''}</span></td>
-                  <td>${attendanceBadge(r.status)}</td>
-                  <td style="font-size:13px;">${r.check_in||'-'}</td>
-                  <td style="font-size:13px;">${r.check_out||'-'}</td>
-                  <td style="font-size:12px;color:#64748b;">${r.notes||''}</td>
+                  <td data-label="Date" style="font-weight:600;">${r.date}</td>
+                  <td data-label="Employee">${r.full_name}<br><span style="font-size:11px;color:#64748b;">${r.current_job_title||''}</span></td>
+                  <td data-label="Status">${attendanceBadge(r.status)}</td>
+                  <td data-label="Check In" style="font-size:13px;">${r.check_in||'-'}</td>
+                  <td data-label="Check Out" style="font-size:13px;">${r.check_out||'-'}</td>
+                  <td data-label="Notes" style="font-size:12px;color:#64748b;">${r.notes||''}</td>
                 </tr>`).join('')}
             </tbody>
           </table>
@@ -2708,7 +2708,7 @@ async function loadFindJobs() {
   const content = document.getElementById('content-area');
   content.innerHTML = `
     <div class="card" style="margin-bottom:20px;">
-      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+      <div class="job-filter-row">
         <div style="flex:2;min-width:200px;">
           <label class="form-label">Search Jobs</label>
           <input type="text" id="job-search" class="form-control" placeholder="Job title, skills, company..." onkeydown="if(event.key==='Enter')searchJobs()">

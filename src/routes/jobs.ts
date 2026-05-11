@@ -258,7 +258,9 @@ jobs.post('/', async (c) => {
       openings || 1, deadline || null
     ).run()
 
-    return c.json({ success: true, message: 'Job created successfully', jobId: result.meta.last_row_id })
+    const newJobId = result.meta.last_row_id
+    const newJob = await c.env.DB.prepare('SELECT * FROM jobs WHERE id = ?').bind(newJobId).first() as any
+    return c.json({ success: true, message: 'Job created successfully', jobId: newJobId, job: newJob }, 201)
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
   }
@@ -321,7 +323,8 @@ jobs.put('/:id', async (c) => {
 
     await c.env.DB.prepare(`UPDATE jobs SET ${fields.join(', ')} WHERE id = ?`).bind(...vals).run()
 
-    return c.json({ success: true, message: 'Job updated successfully' })
+    const updatedJob = await c.env.DB.prepare('SELECT * FROM jobs WHERE id = ?').bind(jobId).first() as any
+    return c.json({ success: true, message: 'Job updated successfully', job: updatedJob })
   } catch (e: any) {
     return c.json({ success: false, message: e.message }, 500)
   }
@@ -380,7 +383,7 @@ jobs.post('/:id/apply', async (c) => {
       'INSERT INTO job_applications (job_id, employee_id, cover_letter, match_score) VALUES (?, ?, ?, ?)'
     ).bind(jobId, empProfile.id, cover_letter || '', matchScore).run()
 
-    return c.json({ success: true, message: 'Applied successfully', matchScore })
+    return c.json({ success: true, message: 'Applied successfully', matchScore }, 201)
   } catch (e: any) {
     if (e.message?.includes('UNIQUE')) return c.json({ success: false, message: 'Already applied' }, 409)
     return c.json({ success: false, message: e.message }, 500)

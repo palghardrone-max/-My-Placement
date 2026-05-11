@@ -690,3 +690,181 @@ textarea.form-control { resize: vertical; min-height: 90px; }
     z-index: 50;
   }
 }
+
+/* =============================================
+   MOBILE RESPONSIVE FIXES v3 - COMPLETE
+   ============================================= */
+
+/* ── Touch targets: min 44px ── */
+@media (max-width: 768px) {
+  .btn { min-height: 40px; }
+  .btn-sm { min-height: 34px; }
+  .form-control { min-height: 42px; font-size: 16px !important; } /* prevent iOS zoom */
+  select.form-control { font-size: 16px !important; }
+
+  /* Job search filter: stack on mobile */
+  .job-filter-row {
+    flex-direction: column !important;
+  }
+  .job-filter-row > div { min-width: 100% !important; flex: unset !important; }
+
+  /* Job detail modal header: stack */
+  .job-modal-header { flex-direction: column !important; gap: 10px !important; }
+
+  /* Post job form: single column on small */
+  .post-job-grid { grid-template-columns: 1fr !important; }
+
+  /* Application card: stack status below info */
+  .app-card-inner { flex-direction: column !important; align-items: flex-start !important; }
+  .app-card-status { align-self: flex-start; margin-top: 8px; }
+
+  /* Stat card: ensure 2 cols always */
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+
+  /* Find jobs: pagination wrap */
+  .pagination-row { flex-wrap: wrap !important; justify-content: center; gap: 6px; }
+
+  /* Admin header row: wrap */
+  .admin-header-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+
+  /* Company profile grid: single col */
+  .company-profile-grid { grid-template-columns: 1fr !important; }
+
+  /* HRMS modal form: single col */
+  .hrms-form-grid { grid-template-columns: 1fr !important; }
+
+  /* Table action buttons: smaller icons only */
+  .data-table td[data-label="Actions"] .btn { min-width: 32px; padding: 5px 8px; }
+
+  /* Modal box: taller max-height on mobile */
+  .modal-box { max-height: 88vh; padding: 18px 14px; }
+  .modal-box.modal-lg { max-height: 92vh; width: 98%; margin: 4px; }
+
+  /* Sidebar nav items larger touch area */
+  .nav-link { padding: 13px 14px; min-height: 46px; }
+
+  /* Card title: wrap on mobile */
+  .card-title { flex-wrap: wrap; gap: 8px; }
+
+  /* Section header row: wrap */
+  .section-header { flex-wrap: wrap; gap: 8px; }
+  .section-header .btn { font-size: 12px; padding: 7px 12px; }
+
+  /* Profile tab buttons: full width scroll */
+  .profile-btn-row { flex-wrap: wrap; gap: 8px; }
+  .profile-btn-row .btn { flex: 1; min-width: 140px; font-size: 12px; }
+
+  /* HRMS stat boxes: 2 per row */
+  .hrms-stat-row { gap: 8px; }
+  .hrms-stat-box { min-width: calc(50% - 4px); flex: unset; padding: 10px 8px; }
+  .hrms-stat-num { font-size: 18px; }
+
+  /* Review card: wrap actions */
+  .review-card > div:last-child { flex-wrap: wrap; }
+
+  /* Skill chips: wrap nicely */
+  .skill-chip { font-size: 11px; padding: 3px 10px; margin: 2px; }
+
+  /* Auth card: center everything */
+  .auth-logo h1 { font-size: 22px; }
+  .auth-logo p { font-size: 12px; }
+
+  /* Empty state: compact */
+  .empty-state { padding: 30px 15px; }
+  .empty-state i { font-size: 36px; }
+  .empty-state h3 { font-size: 15px; }
+
+  /* Tab buttons: horizontal scroll */
+  .tabs { display: flex; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; gap: 4px; padding-bottom: 4px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { flex-shrink: 0; }
+
+  /* Application status select: full width */
+  .app-status-select { width: 100% !important; margin-bottom: 8px; }
+
+  /* Job card match badge: smaller on mobile */
+  .match-score-badge { width: 42px; height: 42px; font-size: 10px; }
+
+  /* Modal footer buttons: stack */
+  .modal-footer-btns { flex-direction: column !important; }
+  .modal-footer-btns .btn { width: 100%; justify-content: center; }
+
+  /* Change password modal */
+  #change-pw-modal .modal-box { max-width: 96%; }
+
+  /* Table card view: better spacing */
+  .data-table tr { padding: 14px; margin-bottom: 12px; }
+  .data-table td { padding: 4px 0; line-height: 1.5; }
+  .data-table td::before { min-width: 80px; font-size: 10px; }
+
+  /* Filter search box: full width */
+  .filter-grid-3 .form-group,
+  .filter-grid-2 .form-group { margin: 0 0 8px; }
+
+  /* HRMS attendance grid: single col */
+  .attend-grid { grid-template-columns: 1fr; }
+
+  /* Bulk import row: 2 cols */
+  .bulk-row { grid-template-columns: 1fr 1fr; gap: 4px; }
+  .bulk-row input, .bulk-row select { font-size: 13px !important; padding: 6px 8px; min-height: 36px; }
+
+  /* Salary slip: single col */
+  .pay-grid, .emp-box { grid-template-columns: 1fr; }
+
+  /* Job detail modal actions: full width */
+  .job-apply-actions { flex-direction: column; width: 100%; }
+  .job-apply-actions .btn { width: 100%; justify-content: center; }
+}
+
+/* ── Very small screens (≤400px) ── */
+@media (max-width: 400px) {
+  .stats-grid { grid-template-columns: 1fr 1fr !important; }
+  .hrms-stat-box { min-width: 100%; }
+  .content-area { padding: 10px 8px; }
+  .top-header { padding: 8px 10px; }
+  .sidebar-logo-inner h2 { font-size: 16px; }
+  .modal-box { padding: 14px 12px; }
+  .tab-btn { padding: 7px 10px; font-size: 12px; }
+}
+
+/* ── Fix: table in card view always has white bg ── */
+@media (max-width: 768px) {
+  .card > .table-responsive > .data-table tr {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+}
+
+/* ── Hover effects disabled on touch devices ── */
+@media (hover: none) {
+  .job-card:hover { transform: none; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+  .stat-card:hover { transform: none; }
+  .btn:hover { opacity: 0.9; }
+}
+
+/* ── Fix iOS Safari input tap issues ── */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+input[type="url"],
+select,
+textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 10px;
+}
+
+/* ── Ensure images don't overflow ── */
+img { max-width: 100%; height: auto; }
+
+/* ── Fix long words breaking layout ── */
+.card, .modal-box, .job-card, .review-card {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}

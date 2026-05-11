@@ -132,6 +132,66 @@ profile.put('/', async (c) => {
   }
 })
 
+// Get job recommendations for employee (based on skills + experience)
+profile.get('/recommendations', async (c) => {
+  try {
+    const user = getAuthUser(c)
+    if (!user || user.role !== 'employee') return c.json({ success: false, message: 'Employee access required' }, 403)
+
+    const ep = await c.env.DB.prepare('SELECT * FROM employee_profiles WHERE user_id = ?').bind(user.userId).first() as any
+    if (!ep) return c.json({ success: false, message: 'Profile not found' }, 404)
+
+    const result = await c.env.DB.prepare(`
+      SELECT j.*, c.company_name, c.logo_url, c.is_verified, c.city as company_city
+      FROM jobs j JOIN companies c ON j.company_id = c.id
+      WHERE j.is_active = 1
+      ORDER BY j.created_at DESC
+      LIMIT 50
+    `).all()
+
+    const allJobs = result.results as any[]
+
+    function safeParseSkills(val: any): string[] {
+      if (!val) return []
+      try {
+        const parsed = JSON.parse(val)
+        if (Array.isArray(parsed)) return parsed
+        return [String(parsed)]
+      } catch {
+        return String(val).split(',').map((s: string) => s.trim()).filter(Boolean)
+      }
+    }
+
+    const empSkills = safeParseSkills(ep.skills)
+    const empExp = ep.total_experience_years || 0
+
+    const scoredJobs = allJobs.map(job => {
+      const jobSkills = safeParseSkills(job.skills_required)
+      let score = 0
+      if (jobSkills.length > 0 && empSkills.length > 0) {
+        const jobSkillsLower = jobSkills.map((s: string) => s.toLowerCase())
+        const empSkillsLower = empSkills.map((s: string) => s.toLowerCase())
+        let matched = 0
+        for (const skill of jobSkillsLower) {
+          if (empSkillsLower.some((es: string) => es.includes(skill) || skill.includes(es))) matched++
+        }
+        score += (matched / jobSkills.length) * 60
+      }
+      const expMin = job.experience_min || 0
+      const expMax = job.experience_max || 20
+      if (empExp >= expMin && empExp <= expMax) score += 25
+      else if (empExp >= expMin * 0.7) score += 10
+      if (ep.city && job.city && ep.city.toLowerCase() === job.city.toLowerCase()) score += 15
+      return { ...job, match_score: Math.round(score) }
+    })
+
+    scoredJobs.sort((a, b) => b.match_score - a.match_score)
+    return c.json({ success: true, jobs: scoredJobs.slice(0, 20) })
+  } catch (e: any) {
+    return c.json({ success: false, message: e.message }, 500)
+  }
+})
+
 // Get public employee profile (for companies)
 profile.get('/:id', async (c) => {
   try {
